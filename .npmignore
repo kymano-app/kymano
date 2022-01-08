@@ -1,0 +1,6 @@
+src/
+node_modules/
+localconfigs/
+.babelrc
+tsconfig.json
+package-lock.json
