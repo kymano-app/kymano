@@ -7,6 +7,51 @@ const hasha = require('hasha');
 const fsAsync = require('fs').promises;
 const fs = require('fs');
 const tmp = require('tmp');
+const awaitSpawn = require("await-spawn");
+
+const recursiveDowload = async (url: string, tmpDir, tmpobj, firstFile: string) => {
+  console.log('recursiveDowload::::::::::::::', url, firstFile)
+  const unpackedDowloadedTmp = path.join(tmpDir.name, getFileNameFromUrl(url));
+  console.log('layerFileTmp::::::::', unpackedDowloadedTmp)
+  await downloadAndExtract(url, tmpDir.name, tmpobj)
+
+  console.log('readFileSync:::', unpackedDowloadedTmp)
+  await new Promise(r => setTimeout(r, 10000));
+
+  try {
+    const response = await awaitSpawn('ls', ['-lt', unpackedDowloadedTmp]);
+    console.log('ls -l::::::::::::',response.toString());
+  } catch(e) {
+    console.log('e:::', e)
+  }
+
+  if (!isFileExist(unpackedDowloadedTmp)) {
+    console.log('!!!!!!!!!!!!unpackedDowloadedTmp')
+  }
+  let [newQcow2] = fs.readdirSync(unpackedDowloadedTmp).filter((file: any) => {console.log(file); return path.extname(file) === '.qcow2'});
+  newQcow2 = path.join(unpackedDowloadedTmp, newQcow2);
+  console.log('qcow2::::::::::', newQcow2)
+  if (firstFile) {
+    await joinFiles(firstFile, newQcow2);
+  } else {
+    firstFile = newQcow2;
+  }
+
+  const next = path.join(unpackedDowloadedTmp, 'next');
+  if (isFileExist(next)) {
+    console.log('readFileSync:', next)
+    var newUrl = fs.readFileSync(next, 'utf8');
+    await recursiveDowload(newUrl, tmpDir, tmpobj, firstFile)
+  }
+  // } else {
+  //   console.log('fileHash1:::::::')
+  //   fileHash = await hasha.fromFile((unpackedDowloadedTmp), {
+  //     algorithm: 'sha256',
+  //   });
+  // }
+
+  return firstFile;
+}
 
 const downloadLayer = async (url: string, hash: string, db: any) => {
   const layersPath = `${getUserDataPath()}/layers`;
@@ -20,53 +65,18 @@ const downloadLayer = async (url: string, hash: string, db: any) => {
     });
   }
 
-  let fileHash
-  let i = 0;
   const tmpDir = tmp.dirSync();
-  const layerFileTmp = path.join(tmpDir.name, getFileNameFromUrl(url));
-  let imgPath = layerFileTmp;
-  console.log('layerFileTmp::::::::', layerFileTmp)
-  do {
-    await downloadAndExtract(url, tmpDir.name)
-    console.log('downloadAndExtract:::::::::::::::::', );
-    const info = path.join(layerFileTmp, 'info');
-    console.log('info:::::::::::::::::', info);
-    if (isFileExist(info)) {
-      console.log('isFileExist:::::::::::::::::', info);
-      var newUrl = fs.readFileSync(info, 'utf8');
-      console.log('newUrl:::::::', newUrl)
-      await downloadAndExtract(newUrl, tmpDir.name);
-      console.log('joinFiles:::::::', newUrl)
-      const file1 = path.join(tmpDir.name, getFileNameFromUrl(url), getFileNameFromUrl(url));
-      const file2 = path.join(tmpDir.name, getFileNameFromUrl(newUrl), getFileNameFromUrl(newUrl))
-      imgPath = file1;
-      await joinFiles(file1, file2);
-      console.log('joinFiles ok :::::::')
-      fileHash = await hasha.fromFile(file1, {
-        algorithm: 'sha256',
-      });
-      console.log('fileHash:::::::', fileHash)
-
-    } else {
-
-      console.log('fileHash1:::::::')
-
-      fileHash = await hasha.fromFile((layerFileTmp), {
-        algorithm: 'sha256',
-      });
-    }
-    i++;
-  } while(hash !== fileHash && i < 3);
-
+  const tmpobj = tmp.fileSync();
+  const imgPath = await recursiveDowload(url, tmpDir, tmpobj);
   console.log('imgPath:::::::::::;', imgPath)
-  fs.renameSync(imgPath, `${layersPath}/${fileHash}`);
+  fs.renameSync(imgPath, `${layersPath}/${hash}`);
 
   // fs.unlinkSync(layerFileTmp);
 
-  const row = db.prepare('SELECT * FROM layer_v1 WHERE hash = ?').get(fileHash);
+  const row = db.prepare('SELECT * FROM layer_v1 WHERE hash = ?').get(hash);
   if (!row) {
     const sql = `INSERT INTO layer_v1 (hash, format) VALUES (?, ?)`;
-    await db.prepare(sql).run(fileHash, 'qcow2');
+    await db.prepare(sql).run(hash, 'qcow2');
   }
 };
 

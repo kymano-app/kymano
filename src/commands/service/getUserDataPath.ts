@@ -11,5 +11,5 @@ export default () => {
     return path.join(env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'kymano', 'Data');
   }
 
-  return path.join(env.XDG_DATA_HOME || path.join(path.basename(os.homedir()), '.local', 'share'), 'kymano');
+  return path.join(env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'kymano');
 };

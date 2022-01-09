@@ -11,6 +11,7 @@ import getUserDataPath from './getUserDataPath';
 import replaceVarsToDrivePathes from './replaceVarsToDrivePathes';
 
 const fs = require('fs').promises;
+const tmp = require('tmp');
 
 const execConfig = async (name: string, db: any) => {
   const userDrivesDirectory = `${getUserDataPath()}/user_layers/${name.toLowerCase()}`;
@@ -37,7 +38,8 @@ const execConfig = async (name: string, db: any) => {
   );
 
   if (!isFileExist(qemuBinary)) {
-    await downloadAndExtract(qemuUrl, qemuDirectory);
+    const tmpobj = tmp.fileSync();
+    await downloadAndExtract(qemuUrl, qemuDirectory, tmpobj);
   }
 
   console.log('qemu:::::::', qemuUrl, qemuDirectory, qemuBinary);

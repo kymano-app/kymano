@@ -25,23 +25,24 @@ async function unPackTarGz(file: string, dest: string) {
 
   console.log('::::::::::::::::: file, dest', file, dest);
 
-  const data = fs
+  return new Promise<void>((resolve, reject) => {
+    fs
     .createReadStream(path.resolve(file))
     .on('error', console.log)
-    .pipe(tar.x({ C: dest }))
+    .pipe(tar.x({ C: dest, sync: true }))
     .on('entry', (entry) => {
       progress.tick(1);
-    });
-
-    console.log('::::::::::::::::: return'), file;
-
-  return new Promise<void>((resolve, reject) => {
-    data.on('end', () => {
-      console.log('::::::::::::::::: resolve', file);
-      resolve();
-    });
-
-    data.on('error', (err) => {
+    }).on('end', () => {
+      console.log('::::::::::::::::: resolve readdirSync');
+      fs.readdirSync(dest).forEach((file: any) => {
+        console.log(':',file);
+        console.log('::::::::::::::::: resolve', file, dest);
+        resolve();
+        fs.readdirSync(dest+'/'+file).forEach((file2: any) => {
+          console.log('::',file2)
+        });
+      });
+    }).on('error', (err) => {
       console.log('::::::::::::::::: error', err);
       reject();
     });

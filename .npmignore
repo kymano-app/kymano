@@ -4,3 +4,4 @@ localconfigs/
 .babelrc
 tsconfig.json
 package-lock.json
+.git/

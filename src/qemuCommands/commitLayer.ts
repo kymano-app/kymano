@@ -1,31 +1,31 @@
-import path from "path";
+import execCommand from "../commands/service/execCommand";
 import getArch from "../commands/service/getArch";
 import getPlatform from "../commands/service/getPlatform";
 import getUserDataPath from "../commands/service/getUserDataPath";
+import { QEMU_DEFAULT } from "../consts";
 
 const spawn = require('await-spawn');
 
 const commitLayer = async (layerPath: string) => {
   try {
-    const qemuVersion = '6.2.0-gpu-sdl';
-    const qemuDirectory = `${getUserDataPath()}/qemu/${qemuVersion}-${getPlatform()}-${getArch()}`;
-    const qemuImg = `${qemuDirectory}/bin/qemu-img`;
+    const qemuImg = `${getUserDataPath()}/qemu/${QEMU_DEFAULT[getPlatform()]}-${getPlatform()}-${getArch()}/bin/qemu-img`;
     await spawn("chmod", ["+x", qemuImg], { stdio: "inherit" });
     await spawn("xattr", ["-cr", qemuImg], { stdio: "inherit" });
-    const response = await spawn(
-      qemuImg,
-      ['commit', layerPath],
-      {
-        stdio: "inherit",
-        env: {
-          ...process.env,
-          DYLD_LIBRARY_PATH: path.join(
-            qemuImg.split("/").slice(0, -2).join("/"),
-            "lib"
-          ),
-        },
-      }
-    );
+    // const response = await spawn(
+    //   qemuImg,
+    //   ['commit', layerPath],
+    //   {
+    //     stdio: "inherit",
+    //     env: {
+    //       ...process.env,
+    //       DYLD_LIBRARY_PATH: path.join(
+    //         qemuImg.split("/").slice(0, -2).join("/"),
+    //         "lib"
+    //       ),
+    //     },
+    //   }
+    // );
+    const response = await execCommand(['commit', layerPath], qemuImg)
 
     console.log(response.toString(), layerPath);
   } catch (e) {

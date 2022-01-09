@@ -1,14 +1,12 @@
-import path from 'path';
+import axios from 'axios';
 import os from 'os';
+import path from 'path';
 import addOrUpdateMyLocalConfig from '../dataSource/config/addOrUpdateMyLocalConfig';
 import processConfig from '../v1/processConfig';
-import execConfig from './service/execConfig';
-import axios from 'axios';
 import downloadFile from './service/downloadFile';
-import unPackTarGz from './service/unPackTarGz';
-import getUserDataPath from './service/getUserDataPath';
-import unZip from './service/unZip';
+import execConfig from './service/execConfig';
 import getArch from './service/getArch';
+import unZip from './service/unZip';
 const yaml = require('js-yaml');
 const tmp = require('tmp');
 
@@ -27,6 +25,13 @@ const isGithubOrHttps = (firstPart: string) => {
 
 const run = async (args: any[], db: any) => {
   const urlOrPath = args._[1];
+
+  let arch = getArch();
+  if (args.platform) {
+    arch = args.platform;
+  }
+
+
   let runConfig = 'url';
   const splited = urlOrPath.split('/');
 
@@ -51,7 +56,7 @@ const run = async (args: any[], db: any) => {
     console.log()
     const parsedConfig = await processConfig(
       `/${nameAndVersion[1]}`,
-      `${tmpDir.name}/${ymlUrl[1]}-master/${nameAndVersion[0]}-${getArch()}/`
+      `${tmpDir.name}/${ymlUrl[1]}-master/${nameAndVersion[0]}-${arch}/`
     );
     console.log('parsedConfig::', parsedConfig);
     await addOrUpdateMyLocalConfig(parsedConfig, db);

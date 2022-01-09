@@ -1,13 +1,12 @@
+import execCommand from "../commands/service/execCommand";
 import getExternalBinariesPath from "../service/getExternalBinariesPath";
 
 const spawn = require('await-spawn');
 
 const convert = async (importingPath: string, layerPath: string) => {
   try {
-    const response = await spawn(
-      `${getExternalBinariesPath()}sysroot-macOS-arm64/bin/qemu-img`,
-      ['convert', importingPath, '-O', 'qcow2', layerPath]
-    );
+    const response = await execCommand(['convert', importingPath, '-O', 'qcow2', layerPath], qemuImg)
+
     console.log(response.toString());
   } catch (e) {
     console.log(e.stderr.toString());

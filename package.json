@@ -1,15 +1,16 @@
 {
   "name": "kymano",
-  "version": "0.0.5",
+  "version": "0.0.23",
   "description": "",
-  "main": "index.js",
+  "main": "dist/bin/kymano.js",
+  "module": "dist/bin/kymano.js",
   "bin": {
     "kymano": "dist/bin/kymano.js"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
     "type-check:watch": "npm run type-check -- --watch",
-    "build": "npm run build:types && npm run build:js",
+    "build": "rollup -c",
     "build:types": "tsc --emitDeclarationOnly",
     "build:js": "babel src --out-dir dist --extensions \".ts,.tsx\" --source-maps inline"
   },
@@ -39,21 +40,25 @@
     "progress": "^2.0.3",
     "request": "^2.88.2",
     "request-progress": "^3.0.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-typescript": "^1.0.1",
     "simple-yaml-import": "^0.2.0",
     "tmp": "^0.2.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@babel/cli": "^7.8.3",
-    "@babel/core": "^7.8.3",
-    "@babel/plugin-proposal-class-properties": "^7.8.3",
+    "@babel/cli": "^7.16.7",
+    "@babel/core": "^7.16.7",
+    "@babel/plugin-proposal-class-properties": "^7.16.7",
     "@babel/plugin-transform-runtime": "^7.16.7",
-    "@babel/preset-env": "^7.8.3",
-    "@babel/preset-typescript": "^7.8.3",
+    "@babel/preset-env": "^7.16.7",
+    "@babel/preset-typescript": "^7.16.7",
     "@types/better-sqlite3": "^7.4.2",
     "@types/bl": "^5.0.2",
     "@types/tar": "^6.1.1",
     "@types/uuid": "^8.3.3",
+    "babel-cli": "^6.26.0",
     "typescript": "^3.7.5"
   }
 }
