@@ -7,7 +7,7 @@ export default () => {
     case 'linux':
       return 'linux';
     case 'win32':
-      return 'win';
+      return 'windows';
     default:
       return 'unknown';
   }

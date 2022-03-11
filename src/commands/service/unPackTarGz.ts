@@ -6,14 +6,19 @@ const ProgressBar = require('progress');
 
 async function unPackTarGz(file: string, dest: string) {
   let numberOfFiles = 0;
+  const files: any[] = [];
   tar.t({
     file,
     sync: true,
-    onentry: () => {
+    onentry: (entry) => {
       numberOfFiles += 1;
+      console.log('entry::::::::::::', entry.path, entry.type)
+      if (entry.type === 'File') {
+        files.push(entry.path)
+      }
     },
   });
-  console.log('numberOfFiles::::::::::::', numberOfFiles)
+  console.log('numberOfFiles::::::::::::', numberOfFiles, files)
 
   const progress = new ProgressBar('extracting [:bar] :percent :etas', {
     width: 40,
@@ -34,14 +39,7 @@ async function unPackTarGz(file: string, dest: string) {
       progress.tick(1);
     }).on('end', () => {
       console.log('::::::::::::::::: resolve readdirSync');
-      fs.readdirSync(dest).forEach((file: any) => {
-        console.log(':',file);
-        console.log('::::::::::::::::: resolve', file, dest);
-        resolve();
-        fs.readdirSync(dest+'/'+file).forEach((file2: any) => {
-          console.log('::',file2)
-        });
-      });
+      resolve(files);
     }).on('error', (err) => {
       console.log('::::::::::::::::: error', err);
       reject();

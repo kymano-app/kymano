@@ -1,9 +1,11 @@
 {
   "name": "kymano",
-  "version": "0.0.23",
+  "version": "0.0.43",
   "description": "",
-  "main": "dist/bin/kymano.js",
-  "module": "dist/bin/kymano.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/cli.esm.js",
+  "bug": "dist/bug.js",
   "bin": {
     "kymano": "dist/bin/kymano.js"
   },

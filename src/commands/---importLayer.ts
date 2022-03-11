@@ -1,17 +1,18 @@
-import { v4 as uuidv4 } from 'uuid';
 import convert from '../qemuCommands/convert';
 import isFileExist from '../service/isFileExist';
 import getUserDataPath from './service/getUserDataPath';
-
+const tmp = require('tmp');
 const hasha = require('hasha');
 const fsAsync = require('fs').promises;
 const fs = require('fs');
 
-const importLayer = async (args: any[], db: any) => {
-  const importingFilePath = args[5];
+export const importLayer = async (args: any[], db: any) => {
+  const importingFilePath = args._[1];
+
   const layersPath = `${getUserDataPath()}/layers`;
 
-  const layerFileTmp = `${layersPath}/${uuidv4()}.tmp.qcow2`;
+  const tmpFile = tmp.fileSync();
+  const layerFileTmp = tmpFile.name;
 
   if (!isFileExist(layersPath)) {
     await fsAsync.mkdir(layersPath, {
@@ -26,13 +27,14 @@ const importLayer = async (args: any[], db: any) => {
 
   // fs.copyFileSync(layerFileTmp, `${layersPath}/${fileHash}.qcow2`);
   // fs.unlinkSync(layerFileTmp);
-  fs.renameSync(layerFileTmp, `${layersPath}/${fileHash}.qcow2`);
+  fs.renameSync(layerFileTmp, `${layersPath}/${fileHash}`);
 
   const row = db.prepare('SELECT * FROM layer_v1 WHERE hash = ?').get(fileHash);
   if (!row) {
     const sql = `INSERT INTO layer_v1 (hash, format) VALUES (?, ?)`;
     await db.prepare(sql).run(fileHash, 'qcow2');
   }
+  console.log('fileHash:', fileHash);
 };
 
 export default async (args: any[], db: any) => {

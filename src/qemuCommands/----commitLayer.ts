@@ -11,20 +11,7 @@ const commitLayer = async (layerPath: string) => {
     const qemuImg = `${getUserDataPath()}/qemu/${QEMU_DEFAULT[getPlatform()]}-${getPlatform()}-${getArch()}/bin/qemu-img`;
     await spawn("chmod", ["+x", qemuImg], { stdio: "inherit" });
     await spawn("xattr", ["-cr", qemuImg], { stdio: "inherit" });
-    // const response = await spawn(
-    //   qemuImg,
-    //   ['commit', layerPath],
-    //   {
-    //     stdio: "inherit",
-    //     env: {
-    //       ...process.env,
-    //       DYLD_LIBRARY_PATH: path.join(
-    //         qemuImg.split("/").slice(0, -2).join("/"),
-    //         "lib"
-    //       ),
-    //     },
-    //   }
-    // );
+
     const response = await execCommand(['commit', layerPath], qemuImg)
 
     console.log(response.toString(), layerPath);

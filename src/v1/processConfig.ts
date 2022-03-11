@@ -109,7 +109,7 @@ const getFromRemoteZip = async (ymlPath) => {
   });
 };
 
-const addDisplayConfig = (ymlContent, resultConfig, type) => {
+const addConfig = (ymlContent, resultConfig, type) => {
   if (ymlContent[type]) {
     resultConfig[type] = resultConfig[type] || {};
     if (ymlContent[type].config) {
@@ -167,17 +167,36 @@ const addDisplayConfig = (ymlContent, resultConfig, type) => {
         }
       });
     }
+
+    if (ymlContent[type].snapshot) {
+      resultConfig[type].snapshot = ymlContent[type].snapshot;
+    }
+
   }
   return resultConfig[type];
 };
-const addDisplayTypes = (ymlContent, resultConfig) => {
+const addTypes = (ymlContent, resultConfig) => {
   const resultConfigWithDisplayTypes = resultConfig || {};
   ['local', 'remote'].forEach((type) => {
-    resultConfigWithDisplayTypes[type] = addDisplayConfig(
-      ymlContent,
-      resultConfigWithDisplayTypes ?? {},
-      type
+    resultConfigWithDisplayTypes[type] = addVirtOrEmulation(
+      ymlContent[type],
+      resultConfigWithDisplayTypes[type]??{}
     );
+  });
+  return resultConfigWithDisplayTypes;
+};
+
+const addVirtOrEmulation = (ymlContent, resultConfig) => {
+  console.log(ymlContent, resultConfig)
+  const resultConfigWithDisplayTypes = resultConfig || {};
+  ['virtualization', 'emulation'].forEach((type) => {
+    if(ymlContent && type in ymlContent) {
+      resultConfigWithDisplayTypes[type] = addConfig(
+        ymlContent,
+        resultConfigWithDisplayTypes ?? {},
+        type
+      )
+    }
   });
   return resultConfigWithDisplayTypes;
 };
@@ -223,24 +242,18 @@ const processYml = async (ymlPath, workingDir, prevFinalConfig = {}) => {
   }
 
   if (ymlContent.macos) {
-    finalConfig.macos = addDisplayTypes(ymlContent.macos, finalConfig.macos);
+    finalConfig.macos = addTypes(ymlContent.macos, finalConfig.macos);
   }
   if (ymlContent.linux) {
-    finalConfig.linux = addDisplayTypes(ymlContent.linux, finalConfig.linux);
+    finalConfig.linux = addTypes(ymlContent.linux, finalConfig.linux);
   }
-  if (ymlContent.win) {
-    finalConfig.win = addDisplayTypes(ymlContent.win, finalConfig.win);
+  if (ymlContent.windows) {
+    finalConfig.windows = addTypes(ymlContent.windows, finalConfig.windows);
   }
 
   return finalConfig;
 };
 
-// const config = await processYml(
-//   '/fedora35Arm64WebDev20/0.1',
-//   '/Users/oleg/projects/kymano-app/repo/'
-// );
-// // console.log(config);
-// console.log(JSON.stringify(config));
 export default async (ymlPath, workingDir) => {
   return Promise.resolve(await processYml(ymlPath, workingDir));
 };

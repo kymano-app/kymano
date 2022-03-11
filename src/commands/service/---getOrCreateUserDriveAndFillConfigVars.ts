@@ -1,14 +1,20 @@
-import createImg from '../../qemuCommands/createImg';
 import createContainer from '../../qemuCommands/createContainer';
+import createImg from '../../qemuCommands/createImg';
 import getBackingLayerHash from '../../qemuCommands/getBackingLayerHash';
 import isFileExist from '../../service/isFileExist';
-import downloadLayer from '../downloadLayer';
+import downloadLayer from './downloadLayer';
+import downloadAndExtract from './downloadAndExtract';
 import getUserDataPath from './getUserDataPath';
+import path from 'path';
+import changeBackingFile from '../../qemuCommands/changeBackingFile';
+
+const tmp = require('tmp');
+const fs = require('fs');
 
 const getOrCreateUserDriveAndFillConfigVars = async (
-  drives: any, userDrivesDirectory: string, qemuDirectory: string, db:any
+  drives: any, snapshot, userDrivesDirectory: string, qemuDirectory: string, firstStart, db:any
 ) => {
-  console.log('drives:::::::::::', drives)
+  console.log('drives:::::::::::', drives, db)
   const configVars: any[][] = [];
   await Promise.all(
     Object.entries(drives).map(async ([driveName, driveData]) => {
@@ -33,16 +39,16 @@ const getOrCreateUserDriveAndFillConfigVars = async (
         if (isFileExist(userDrivePath)) {
           backingLayerHash = await getBackingLayerHash(userDrivePath, qemuDirectory);
         }
-        console.log('downloadLayer')
+        console.log('isFileExist(userDrivePath)', userDrivePath, isFileExist(userDrivePath))
 
         console.log('driveData.layers', driveData.layers)
 
         for (let i in driveData.layers) {
           let layer = driveData.layers[i];
-          console.log('layer', layer)
+          console.log('layer', layer, `${getUserDataPath()}/layers/${layer.hash}`)
             if (!isFileExist(`${getUserDataPath()}/layers/${layer.hash}`)) {
               await downloadLayer(layer.url, layer.hash, db);
-              backingLayerHash = await getBackingLayerHash(userDrivePath, qemuDirectory);
+              // ??????????????????????????? backingLayerHash = await getBackingLayerHash(userDrivePath, qemuDirectory);
             }
         }
         console.log('downloadLayer ok')
@@ -50,11 +56,20 @@ const getOrCreateUserDriveAndFillConfigVars = async (
         console.log('backingLayerHash::::lastLayerHash::', backingLayerHash, lastLayerHash)
 
         if (driveData.type === 'system' && backingLayerHash !== lastLayerHash) {
-          await createContainer(
-            `${getUserDataPath()}/layers/${lastLayerHash}`,
-            userDrivePath,
-            qemuDirectory
-          );
+          if (snapshot && firstStart) {
+            console.log('userDrivePath', userDrivePath, userDrivesDirectory)
+            const tmpDir = tmp.dirSync();
+            const files = await downloadAndExtract(snapshot.url, tmpDir.name)
+            console.log('files:::::::::::', files)
+            fs.renameSync(path.join(tmpDir.name, files[0]), userDrivePath);
+            await changeBackingFile(`${getUserDataPath()}/layers/${lastLayerHash}`, userDrivePath, qemuDirectory)
+          } else {
+            await createContainer(
+              `${getUserDataPath()}/layers/${lastLayerHash}`,
+              userDrivePath,
+              qemuDirectory
+            );
+          }
         } else if (driveData.type !== 'system') {
           userDrivePath = `${getUserDataPath()}/layers/${lastLayerHash}`;
         }
@@ -66,8 +81,8 @@ const getOrCreateUserDriveAndFillConfigVars = async (
   return configVars;
 };
 
-export default async (drives: any, userDrivesDirectory: string, qemuDirectory: string, db:any) => {
+export default async (drives: any, snapshot, userDrivesDirectory: string, qemuDirectory: string, firstStart, db:any) => {
   return Promise.resolve(
-    await getOrCreateUserDriveAndFillConfigVars(drives, userDrivesDirectory, qemuDirectory, db)
+    await getOrCreateUserDriveAndFillConfigVars(drives, snapshot, userDrivesDirectory, qemuDirectory, firstStart, db)
   );
 };

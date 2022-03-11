@@ -1,4 +1,4 @@
-import execCommand from "../commands/service/execCommand";
+import { execCommand } from "../commands/service/execCommand";
 import getPlatform from "../commands/service/getPlatform";
 
 const spawn = require('await-spawn');
@@ -10,7 +10,7 @@ const createImg = async (imgPath: string, qemuDirectory: string) => {
       await spawn("chmod", ["+x", qemuImg], { stdio: "inherit" });
       await spawn("xattr", ["-cr", qemuImg], { stdio: "inherit" });
     }
-    const response = await execCommand(['create', '-f', 'qcow2', `${imgPath}`, '100G'], qemuImg)
+    const response = await execCommand(['create', '-f', 'qcow2', `${imgPath}`, '4G'], qemuImg, "pip")
 
     console.log('response::::::::', response.toString());
   } catch (e) {

@@ -11,14 +11,23 @@ export default [
 	// an array for the `output` option, where we can specify 
 	// `file` and `format` for each target)
 	{
-		input: 'src/bin/kymano.js',
+		input: 'src/cli.ts',
 		external: ['ms'],
 		plugins: [
 			typescript() // so Rollup can convert TypeScript to JavaScript
 		],
 		output: [
-			{ file: pkg.main, format: 'cjs' },
-			{ file: pkg.module, format: 'es' }
+			{ file: pkg.main, format: 'cjs' }
+		]
+	},
+    {
+		input: 'bug.ts',
+		external: ['ms'],
+		plugins: [
+			typescript() // so Rollup can convert TypeScript to JavaScript
+		],
+		output: [
+			{ file: pkg.bug, format: 'cjs' }
 		]
 	}
 ];

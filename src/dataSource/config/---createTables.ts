@@ -1,9 +1,14 @@
 const add = async (db: { exec: (arg0: string) => void }) => {
+  db.exec(`CREATE TABLE settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    value TEXT NOT NULL
+  )`);
+
   db.exec(`CREATE TABLE repo_v1 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     version TEXT NOT NULL,
-    url TEXT NOT NULL,
-    repoSystemVersion TEXT NOT NULL
+    url TEXT NOT NULL
   )`);
 
   db.exec(`CREATE TABLE config_v1 (
@@ -34,7 +39,7 @@ const add = async (db: { exec: (arg0: string) => void }) => {
     previous_id INT default '0'
   )`);
 
-  db.exec(`CREATE TABLE config_v1_history (
+  db.exec(`CREATE TABLE config_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     version TEXT NOT NULL,
     releaseDescription TEXT NOT NULL,
@@ -66,10 +71,11 @@ const add = async (db: { exec: (arg0: string) => void }) => {
 
   db.exec(`CREATE TABLE my_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    my_vm_name_id INT NOT NULL,
+    cli_alias TEXT,
     config_version INT NOT NULL,
     config_id INT NOT NULL,
-    config_history_version INT NOT NULL,
-    config_history_id INT NOT NULL
+    config_history_id INT
   )`);
 
   db.exec(`CREATE TABLE my_local_config_layer (
@@ -82,8 +88,13 @@ const add = async (db: { exec: (arg0: string) => void }) => {
 
   db.exec(`CREATE TABLE my_local_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    my_vm_name_id INT NOT NULL,
     config JSON HIDDEN
+  )`);
+
+  db.exec(`CREATE TABLE my_vm_name (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL
   )`);
 };
 

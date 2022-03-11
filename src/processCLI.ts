@@ -1,23 +1,35 @@
-import commit from './commands/commit';
-import commitLayer from './commands/commitLayer';
-import importLayer from './commands/importLayer';
-import removeUserLayer from './commands/removeUserLayer';
-import run from './commands/run';
+import { DataSource } from './dataSource/config/dataSource';
+import { Kymano, QemuCommands } from './index';
 
 const processCLI = async (args: any[], db: any) => {
 
+  const dataSource = new DataSource(db)
+  const kymano = new Kymano(dataSource, new QemuCommands());
   const command = args._[0];
+  const param = args._[1];
+
+  const rows = await dataSource.getTables();
+  console.log("rows::::::::", rows)
+  if (rows === 0) {
+    await dataSource.createTables();
+  }
 
   if (command === 'run') {
-    run(args, db);
+    kymano.run(param, args);
   } else if (command === 'commit') {
-    commit(args, db);
+    kymano.commit(param);
+  } else if (command === 'convert') {
+    kymano.importLayer(param);
+  } else if (command === 'search') {
+    kymano.search(param);
   } else if (command === 'commit-layer') {
-    commitLayer(args, db);
+    kymano.commitLayer(param);
   } else if (command === 'import') {
-    importLayer(args, db);
+    kymano.importLayer(param);
   } else if (command === 'rm') {
-    removeUserLayer(args, db);
+    kymano.removeUserLayer(param);
+  } else if (command === 'inspect') {
+    kymano.inspectLayer(param);
   }
 };
 

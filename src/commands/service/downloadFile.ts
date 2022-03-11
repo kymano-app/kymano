@@ -14,7 +14,7 @@ async function downloadFile(url: string, path: string) {
   }
   console.log('totalLength:::::::::', totalLength)
 
-  const progress = new ProgressBar("downloading [:bar] :percent :etas", {
+  const progress = new ProgressBar("downloading [:bar] :percent :etas :rate", {
     width: 40,
     complete: "=",
     incomplete: " ",

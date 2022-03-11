@@ -11,10 +11,10 @@ const fs = require('fs');
 const commitLayer = async (args: any[], db: any) => {
   const hash = args._[1];
   const layersPath = `${getUserDataPath()}/layers`;
-  const layerPath = `${layersPath}/${hash}.qcow2`;
+  const layerPath = `${layersPath}/${hash}`;
 
   const backingLayerHash = await getBackingLayerHash(layerPath);
-  const backingLayerPath = `${layersPath}/${backingLayerHash}.qcow2`;
+  const backingLayerPath = `${layersPath}/${backingLayerHash}`;
 
   const tmpBackingFile = `${backingLayerPath}.tmp`;
   fs.copyFileSync(backingLayerPath, tmpBackingFile);
@@ -28,7 +28,7 @@ const commitLayer = async (args: any[], db: any) => {
   console.log('newBackingFileHash', newBackingFileHash);
   fs.copyFileSync(
     backingLayerPath,
-    `${getUserDataPath()}/layers/${newBackingFileHash}.qcow2`
+    `${getUserDataPath()}/layers/${newBackingFileHash}`
   );
   fs.unlinkSync(backingLayerPath);
   fs.copyFileSync(tmpBackingFile, backingLayerPath);
