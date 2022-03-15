@@ -66,7 +66,11 @@
     "typeinfo": "cpp",
     "unordered_map": "cpp",
     "utility": "cpp",
-    "vector": "cpp"
+    "vector": "cpp",
+    "filesystem": "cpp",
+    "fstream": "cpp",
+    "iomanip": "cpp",
+    "stack": "cpp"
   },
   "C_Cpp.errorSquiggles": "Disabled"
 }

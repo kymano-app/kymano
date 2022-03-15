@@ -6,6 +6,7 @@ import { DataSource } from "../dataSource/config/dataSource";
 import { QemuCommands } from '../qemuCommands/qemuCommands';
 import isFileExist from "../service/isFileExist";
 import processConfig from "../v1/processConfig";
+import { AliasException } from './exceptions/aliasException';
 import { addAbsolutePathForRunningDirectory } from "./service/addAbsolutePathForRunningDirectory";
 import downloadAndExtract from "./service/downloadAndExtract";
 import downloadFile from "./service/downloadFile";
@@ -59,11 +60,11 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     if (!isFileExist(this.qemuPath)) {
       await fsAsync.mkdir(this.qemuPath);
     }
-    console.log('this.qemuImgPath:::::::::;')
     if (!isFileExist(this.qemuImgPath)) {
       await fsAsync.mkdir(this.qemuImgPath);
       await downloadAndExtract(`https://github.com/kymano-app/qemu/releases/download/qemu-img/qemu-img-${getPlatform()}-${getArch()}.tgz`, this.qemuPath);
    }
+   console.log('init ok')
   }
 
   public removeUserLayer = async (vmAndDisk: string) => { 
@@ -144,6 +145,8 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     if (args["platform"]) {
       arch = args["platform"];
     }
+
+    console.log('arch:::::::::', arch);
   
     let runConfig = 'url';
     const splited = urlOrPath.split('/');
@@ -160,12 +163,20 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       let configName;
       [parsedConfig, configName] = await this.dataSource.getConfigByCliAlias(alias);
   
+      console.log('parsedConfig:', parsedConfig);
+      console.log('alias:', alias)
       let firstStart = false;
       if (!parsedConfig) {
         firstStart = true;
         const resp = await axios.get('https://raw.githubusercontent.com/kymano-app/repo/master/cli_aliases.yml');
         const doc = yaml.load(resp.data);
-        const ymlUrl = doc.find((elem: any) => elem.name === alias)['url'].split('/');
+        console.log('doc:', doc);
+        const findAlias = doc.find((elem: any) => elem.name === alias);
+        if (!findAlias) {
+          console.log('!findAlias');
+          throw new AliasException(alias);
+        }
+        const ymlUrl = findAlias['url'].split('/');
         const nameAndVersion = ymlUrl[2].split(':');
         console.log('nameAndVersion:::;',nameAndVersion)
         const url = `https://github.com/${ymlUrl[0]}/${ymlUrl[1]}/archive/refs/heads/master.zip`
@@ -374,7 +385,7 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     const layerFileTmp = tmp.fileSync().name;
 
     await this.qemuCommands.convert(importingFilePath, layerFileTmp);
-    const fileHash = await hasha.fromFile(layerFileTmp, {
+    const fileHash = await hasha.async(tmp.fileSync().name, {
       algorithm: "sha256",
     });
 

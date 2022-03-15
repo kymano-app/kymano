@@ -1,3 +1,4 @@
+import { AliasException } from './commands/exceptions/aliasException';
 import { DataSource } from './dataSource/config/dataSource';
 import { Kymano, QemuCommands } from './index';
 
@@ -15,21 +16,27 @@ const processCLI = async (args: any[], db: any) => {
   }
 
   if (command === 'run') {
-    kymano.run(param, args);
+    try {
+      await kymano.run(param, args);
+    } catch (e) {
+      if (e instanceof AliasException) {
+        console.log(`${e}`);
+      }
+    }
   } else if (command === 'commit') {
-    kymano.commit(param);
+    await kymano.commit(param);
   } else if (command === 'convert') {
-    kymano.importLayer(param);
+    await kymano.importLayer(param);
   } else if (command === 'search') {
-    kymano.search(param);
+    await kymano.search(param);
   } else if (command === 'commit-layer') {
-    kymano.commitLayer(param);
+    await kymano.commitLayer(param);
   } else if (command === 'import') {
-    kymano.importLayer(param);
+    await kymano.importLayer(param);
   } else if (command === 'rm') {
-    kymano.removeUserLayer(param);
+    await kymano.removeUserLayer(param);
   } else if (command === 'inspect') {
-    kymano.inspectLayer(param);
+    await kymano.inspectLayer(param);
   }
 };
 

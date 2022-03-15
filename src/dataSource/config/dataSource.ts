@@ -138,6 +138,9 @@ export class DataSource {
         "SELECT config_id, config_version, config_history_id FROM my_config WHERE cli_alias = ? ORDER BY id DESC LIMIT 1"
       )
       .get(alias);
+    
+    console.log('my_config:',JSON.stringify(my_config));
+
     if (my_config) {
       const config_v1 = await this.db
         .prepare(
