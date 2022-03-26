@@ -19,12 +19,13 @@ import { recursiveDowload } from "./service/recursiveDowload";
 import replaceVarsToDrivePathes from "./service/replaceVarsToDrivePathes";
 import sendMonitorCommand from "./service/sendMonitorCommand";
 import unZip from "./service/unZip";
+import {fileHash, hash} from "../service/hash"
 
 const fsAsync = require('fs').promises;
-const hasha = require('hasha');
 const tmp = require('tmp');
 const spawn = require('await-spawn');
 const yaml = require('js-yaml');
+const pjson = require('../../package.json');
 
 export class Kymano {
   readonly layersPath: string;
@@ -81,6 +82,12 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     console.log(`inspectLayer: ${layer}`);
   };
 
+  public getVersion = async () => {
+    await this.init();
+    console.log(`Kymano ${pjson.version}`);
+  };
+
+
   public search = async (name: string) => {
     await this.init();
       console.log(`search: ${name}`);
@@ -92,8 +99,8 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     const diskName = vmAndDisk.split("/")[1];
     const layersPath = `${getUserDataPath()}/layers`;
     const driveFile = `${getUserDataPath()}/user_layers/${vmName}/${diskName}.qcow2`;
-    const fileHash = await hasha.fromFile(driveFile, { algorithm: "sha256" });
-    const layerFile = `${layersPath}/${fileHash}`;
+    const fileHash_ = await fileHash(driveFile);
+    const layerFile = `${layersPath}/${fileHash_}`;
 
     try {
       await fsAsync.access(layersPath);
@@ -106,8 +113,8 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     fs.copyFileSync(driveFile, layerFile);
     fs.unlinkSync(driveFile);
 
-    this.dataSource.selectOrInsertLayer(fileHash);
-    console.log("fileHash", fileHash);
+    this.dataSource.selectOrInsertLayer(fileHash_);
+    console.log("fileHash", fileHash_);
   }
 
   public commitLayer = async (hash: string) => {
@@ -124,9 +131,7 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
 
     await this.qemuCommands.commitLayer(layerPath);
 
-    const newBackingFileHash = await hasha.fromFile(backingLayerPath, {
-      algorithm: 'sha256',
-    });
+    const newBackingFileHash = await fileHash(backingLayerPath);
     console.log('newBackingFileHash', newBackingFileHash);
     fs.copyFileSync(
       backingLayerPath,
@@ -146,8 +151,10 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       arch = args["platform"];
     }
 
-    console.log('arch:::::::::', arch);
+    console.log('arch:', arch);
   
+    console.log('urlOrPath:', urlOrPath);
+
     let runConfig = 'url';
     const splited = urlOrPath.split('/');
   
@@ -156,7 +163,8 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     } else if (!isGithubOrHttps(splited[0]) || ['', '.'].includes(splited[0])) {
       runConfig = 'path';
     }
-  
+    console.log('runConfig:', runConfig);
+
     if (runConfig === 'alias') {
       const alias = urlOrPath;
       let parsedConfig;
@@ -201,7 +209,8 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       }
   
       console.log('parsedConfig:::::::::::', configName, parsedConfig);
-      await this.execConfig(configName, arch, parsedConfig, firstStart);
+      const resp = await this.execConfig(configName, arch, parsedConfig, firstStart);
+      return [resp[0]];
     }
   
     if (runConfig === 'path') {
@@ -210,6 +219,9 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       if (urlOrPath.slice(0, 2) === './') {
         directory = path.dirname(urlOrPath.slice(2, urlOrPath.length));
       }
+
+      console.log('directory:', directory);
+
       const parsedConfig = await processConfig(
         `/${path.basename(urlOrPath)}`,
         addAbsolutePathForRunningDirectory(directory)
@@ -225,7 +237,9 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       }
       await this.dataSource.addOrUpdateMyLocalConfig(parsedConfig);
       const config = await this.dataSource.getMyLocalConfig(parsedConfig.name);
-      await this.execConfig(parsedConfig.name, arch, config, false);
+      console.log('execConfig');
+      const resp = await this.execConfig(parsedConfig.name, arch, config, false);
+      return [resp[0]];
     }
   };
 
@@ -253,7 +267,7 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       qemuDirectory,
       `bin/qemu-system-${getQemuArch(arch)}`
     );
-    console.log('qemuBinary:::', qemuBinary)
+    console.log('qemuBinary:::::::::', qemuBinary)
   
     if (!isFileExist(qemuBinary)) {
        await downloadAndExtract(qemuUrl, qemuDirectory);
@@ -278,11 +292,15 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
       console.log('snapshot::::::', config[getPlatform()].local[executionType].snapshot)
       // start vm
       console.log('start');
-      await this.qemuCommands.startVm(confparams, qemuBinary);
-      sendMonitorCommand("loadvm "+config[getPlatform()].local[executionType].snapshot.tag)
-      console.log('ok');
+      const resp = this.qemuCommands.startVm(confparams, qemuBinary);
+      console.log('pid::', resp.child.pid);
+      return [resp];
+      //sendMonitorCommand("loadvm "+config[getPlatform()].local[executionType].snapshot.tag)
+      //console.log('ok');
     } else {
-      await this.qemuCommands.startVm(confparams, qemuBinary);
+      const resp = this.qemuCommands.startVm(confparams, qemuBinary);
+      console.log('pid::', resp.child.pid);
+      return [resp];
     }
   };
 
@@ -299,6 +317,7 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
         let  userDrivePath = `${userDrivesDirectory}/${driveName}.qcow2`;
         console.log('userDrivePath', userDrivePath);
         console.log('driveData:::::::::', driveData);
+        console.log('driveData!', !driveData.path, !driveData.layers);
         if (!driveData.path && !driveData.layers) {
           console.log('!driveData.path && !driveData.layers');
           configVars.push([driveName, userDrivePath]);
@@ -385,15 +404,16 @@ constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands
     const layerFileTmp = tmp.fileSync().name;
 
     await this.qemuCommands.convert(importingFilePath, layerFileTmp);
-    const fileHash = await hasha.async(tmp.fileSync().name, {
-      algorithm: "sha256",
-    });
+    const fileHash = await hash(tmp.fileSync().name);
+    const layersPath = `${this.layersPath}/${fileHash}`;
 
     // fs.copyFileSync(layerFileTmp, `${layersPath}/${fileHash}.qcow2`);
     // fs.unlinkSync(layerFileTmp);
-    fs.renameSync(layerFileTmp, `${this.layersPath}/${fileHash}`);
+    fs.renameSync(layerFileTmp, layersPath);
 
     this.dataSource.selectOrInsertLayer(fileHash);
-    console.log("fileHash:", fileHash);
+    console.log("layersPath:", layersPath);
+
+    return layersPath;
   }
 }

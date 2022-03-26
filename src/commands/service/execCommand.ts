@@ -1,18 +1,16 @@
 import path from "path";
+import { QemuLaunchException } from "../exceptions/qemuLaunchException";
 import getArch from "./getArch";
 import getPlatform from "./getPlatform";
 
 const spawn = require('await-spawn');
 
-export const execCommand = async (
+export const execCommand =  (
   params: any,
   qemuBinary: string,
   stdio: string
 ) => {
-  try {
     const mainPath = qemuBinary.split("/").slice(0, -2).join("/");
-
-    let response;
 
     if (getPlatform() === "linux") {
       let ld = path.join(mainPath, "libs/ld-linux-x86-64.so.2");
@@ -27,7 +25,7 @@ export const execCommand = async (
         ...[ld, ...[qemuBinary, ...params]]
       );
 
-      response = await spawn(ld, [qemuBinary, ...params], {
+      return spawn(ld, [qemuBinary, ...params], {
         stdio: stdio,
         env: {
           ...process.env,
@@ -39,25 +37,27 @@ export const execCommand = async (
     if (getPlatform() === "macos") {
       console.log("DYLD_LIBRARY_PATH", path.join(mainPath, "lib"));
       console.log(...[qemuBinary, ...params]);
-      response = await spawn(qemuBinary, [...params], {
-        stdio: stdio,
-        env: {
-          ...process.env,
-          DYLD_LIBRARY_PATH: path.join(mainPath, "lib"),
-        },
-      });
+      try {
+        console.log('qemuBinary:::::', qemuBinary)
+
+        return spawn(qemuBinary, [...params], {
+          stdio: stdio,
+          env: {
+            ...process.env,
+            DYLD_LIBRARY_PATH: path.join(mainPath, "lib"),
+          },
+        });
+        //console.log('resp', resp)
+        //return resp;
+      } catch(e) {
+        throw new QemuLaunchException(e.stderr.toString());
+      }
     }
 
     if (getPlatform() === "windows") {
       console.log(...[qemuBinary, ...params]);
-      response = await spawn(qemuBinary, [...params], {
+      return spawn(qemuBinary, [...params], {
         stdio: stdio,
       });
     }
-
-    console.log("response:::::::::::;", response);
-    return response;
-  } catch (error) {
-    console.error(error);
-  }
 };

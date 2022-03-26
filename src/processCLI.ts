@@ -1,4 +1,6 @@
-import { AliasException } from './commands/exceptions/aliasException';
+import fs from 'fs';
+import path from 'path';
+import getUserDataPath from './commands/service/getUserDataPath';
 import { DataSource } from './dataSource/config/dataSource';
 import { Kymano, QemuCommands } from './index';
 
@@ -15,13 +17,15 @@ const processCLI = async (args: any[], db: any) => {
     await dataSource.createTables();
   }
 
+  const userDataPath = getUserDataPath();
+
   if (command === 'run') {
     try {
-      await kymano.run(param, args);
+      const response = await kymano.run(param, args);
+      fs.writeFileSync(path.join(userDataPath, 'kymano_cli.pid'), response[0].child.pid.toString());
+      await response;
     } catch (e) {
-      if (e instanceof AliasException) {
-        console.log(`${e}`);
-      }
+      console.log(`error: ${e.message}`);
     }
   } else if (command === 'commit') {
     await kymano.commit(param);
@@ -37,6 +41,8 @@ const processCLI = async (args: any[], db: any) => {
     await kymano.removeUserLayer(param);
   } else if (command === 'inspect') {
     await kymano.inspectLayer(param);
+  } else if (command === 'version') {
+    await kymano.getVersion();
   }
 };
 

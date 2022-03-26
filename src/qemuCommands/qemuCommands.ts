@@ -128,6 +128,10 @@ export class QemuCommands {
         await spawn("chmod", ["+x", this.qemuImgBinPath], { stdio: "inherit" });
         await spawn("xattr", ["-cr", this.qemuImgBinPath], { stdio: "inherit" });
       }
+      const dir = path.dirname(imgPath);
+      if (!isFileExist(dir)) {
+        await fsAsync.mkdir(dir);
+      }
       const response = await execCommand(['create', '-f', 'qcow2', `${imgPath}`, '4G'], this.qemuImgBinPath, "pipe")
   
       console.log('response::::::::', response.toString());
@@ -136,9 +140,9 @@ export class QemuCommands {
     }
   };
   
-  public  startVm = async (confparams: any, qemuBinary: string) => {
-    try {
-      console.log('qemuBinary::::::',qemuBinary);
+  public startVm = (confparams: any, qemuBinary: string) => {
+    //try {
+      console.log('qemuBinary11::::::',qemuBinary);
       let divider = `/`
       if (getPlatform() === 'windows') {
         divider = `\\`;
@@ -149,16 +153,19 @@ export class QemuCommands {
         share = path.join(mainPath, 'share');
       }
       console.log('share::::::::::', share)
-      await execCommand([
+      const resp = execCommand([
         "-L",
         share,
         ...confparams,
-      ], qemuBinary, 'inherit')
+      ], qemuBinary, ['inherit', 'inherit', null]);
+      console.log('resp.child1', resp.child.pid);
+      return resp;
+
       // await exec(
       //   `osascript -e 'tell application "System Events"' -e 'set frontmost of every process whose unix id is ${qemuProc.pid} to true' -e 'end tell'`
       // );
-    } catch (error) {
-      console.error(error);
-    }
+    //} catch (error) {
+      //console.error(error);
+    //}
   }
 }

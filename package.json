@@ -1,6 +1,6 @@
 {
   "name": "kymano",
-  "version": "0.0.44",
+  "version": "0.0.60",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -38,6 +38,7 @@
     "env-paths": "^3.0.0",
     "esm": "^3.2.25",
     "hasha": "^5.2.2",
+    "js-yaml": "^3.14.1",
     "minimist": "^1.2.5",
     "progress": "^2.0.3",
     "request": "^2.88.2",
@@ -46,6 +47,7 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript": "^1.0.1",
     "simple-yaml-import": "^0.2.0",
+    "tar": "^6.1.11",
     "tmp": "^0.2.1",
     "uuid": "^8.3.2"
   },

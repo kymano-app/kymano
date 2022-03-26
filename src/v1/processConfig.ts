@@ -187,7 +187,7 @@ const addTypes = (ymlContent, resultConfig) => {
 };
 
 const addVirtOrEmulation = (ymlContent, resultConfig) => {
-  console.log(ymlContent, resultConfig)
+  console.log('ymlContent', ymlContent, 'resultConfig', resultConfig)
   const resultConfigWithDisplayTypes = resultConfig || {};
   ['virtualization', 'emulation'].forEach((type) => {
     if(ymlContent && type in ymlContent) {
@@ -204,8 +204,9 @@ const addVirtOrEmulation = (ymlContent, resultConfig) => {
 const processYml = async (ymlPath, workingDir, prevFinalConfig = {}) => {
   let ymlContent;
   let finalConfig = {};
-  console.log(ymlPath, workingDir);
+  console.log('ymlPath:', ymlPath, 'workingDir:', workingDir);
   if (ymlPath.slice(0, 1) === '/') {
+    console.log('read ymlContent:', workingDir + ymlPath);
     ymlContent = read(workingDir + ymlPath, { path: workingDir });
     if (ymlContent.from) {
       finalConfig = await processYml(
