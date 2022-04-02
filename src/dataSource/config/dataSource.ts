@@ -1,7 +1,6 @@
 import { Database } from "better-sqlite3";
 import fs from "fs";
 import path from "path";
-import { stringify } from "uuid";
 import processConfig from "../../v1/processConfig";
 
 const yaml = require('js-yaml');
@@ -351,6 +350,10 @@ export class DataSource {
      return await this.db.prepare(`SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='repo_v1'`).get().count;
   }
   
+  public getVolumes = async () => {
+    return await this.db.prepare(`SELECT * FROM layer_v1`).all();
+ }
+
   public addOrUpdateMyLocalConfig = async (
     config: {
       name: any;
