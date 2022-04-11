@@ -1,6 +1,6 @@
 {
   "name": "kymano",
-  "version": "0.0.61",
+  "version": "0.0.64",
   "description": "",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,7 +21,8 @@
     "url": "git+https://github.com/kymano-app/kymano.git"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "config.js"
   ],
   "author": "Alex Braine",
   "license": "MIT",
@@ -47,6 +48,7 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript": "^1.0.1",
     "simple-yaml-import": "^0.2.0",
+    "systeminformation": "^5.11.9",
     "tar": "^6.1.11",
     "tmp": "^0.2.1",
     "uuid": "^8.3.2"

@@ -89,6 +89,7 @@ const addRequirements = (ymlContent, finalConfig) => {
 const getFromRemoteZip = async (ymlPath) => {
   const githubRepoName = ymlPath.split('/').slice(1, 3).join('/');
   const githubYmlPath = ymlPath.split('/').slice(3).join('/');
+  const userNameAndRepo = githubRepoName.split('/');
 
   const tmpDir = os.tmpdir();
   const zipData = await axios.get(
@@ -104,8 +105,8 @@ const getFromRemoteZip = async (ymlPath) => {
     fs.mkdir(`${tmpDir}/${githubRepoName}`, { recursive: true });
   }
   zip.extractAllTo(`${tmpDir}/${githubRepoName}`, true);
-  return read(`${tmpDir}/${githubRepoName}/repo-master/${githubYmlPath}`, {
-    path: `${tmpDir}/${githubRepoName}/repo-master/`,
+  return read(`${tmpDir}/${githubRepoName}/${userNameAndRepo[1]}-master/${githubYmlPath}`, {
+    path: `${tmpDir}/${githubRepoName}/${userNameAndRepo[1]}-master/`,
   });
 };
 

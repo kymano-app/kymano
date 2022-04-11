@@ -3,6 +3,7 @@ import path from 'path';
 import getUserDataPath from './commands/service/getUserDataPath';
 import { DataSource } from './dataSource/config/dataSource';
 import { Kymano, QemuCommands } from './index';
+const pjson = require('../package.json');
 
 const processCLI = async (args: any[], db: any) => {
 
@@ -27,6 +28,14 @@ const processCLI = async (args: any[], db: any) => {
     } catch (e) {
       console.log(`error: ${e.message}`);
     }
+  } else if (command === 'run-vm') {
+    await kymano.runVm(param);
+  } else if (command === 'create-vm') {
+    await kymano.createVm(param);
+  } else if (command === 'update') {
+    await kymano.update();
+  } else if (command === 'list') {
+    await kymano.configListForCli();
   } else if (command === 'commit') {
     await kymano.commit(param);
   } else if (command === 'convert') {

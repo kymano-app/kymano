@@ -19,11 +19,6 @@ npx kymano run fedora --drive /path_to_the_vm_disk.qcow2
 ```
 Instead of 'fedora' you can specify needed operation system.
 
-or you can just inspect the imported drive content:
-```sh
-npx kymano inspect 95039522f9b8f06c06cd9f43dbdb9ec627e50a48217212e56f0e8ed43fa4434a
-```
-
 ### Run the fedora VM
 
 ```sh
