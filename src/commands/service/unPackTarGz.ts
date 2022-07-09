@@ -1,10 +1,10 @@
-import fs from 'fs';
-import path from 'path';
-import tar from 'tar';
+import fs from "fs";
+import path from "path";
+import tar from "tar";
 
-const ProgressBar = require('progress');
+const ProgressBar = require("progress");
 
-async function unPackTarGz(file: string, dest: string) {
+async function unPackTarGz(file: string, dest: string, myConfigId: Number) {
   let numberOfFiles = 0;
   const files: any[] = [];
   tar.t({
@@ -12,41 +12,53 @@ async function unPackTarGz(file: string, dest: string) {
     sync: true,
     onentry: (entry) => {
       numberOfFiles += 1;
-      console.log('entry::::::::::::', entry.path, entry.type)
-      if (entry.type === 'File') {
-        files.push(entry.path)
+      console.log("entry::::::::::::", entry.path, entry.type);
+      if (entry.type === "File") {
+        files.push(entry.path);
       }
     },
   });
-  console.log('numberOfFiles::::::::::::', numberOfFiles, files)
+  console.log("numberOfFiles::::::::::::", numberOfFiles, files);
 
-  const progress = new ProgressBar('extracting [:bar] :percent :etas', {
+  const progress = new ProgressBar("extracting [:bar] :percent :etas", {
     width: 40,
-    complete: '=',
-    incomplete: ' ',
+    complete: "=",
+    incomplete: " ",
     renderThrottle: 1,
     total: numberOfFiles,
   });
 
-  console.log('::::::::::::::::: file, dest', file, dest);
+  console.log("::::::::::::::::: file, dest", file, dest);
 
   return new Promise<void>((resolve, reject) => {
-    fs
-    .createReadStream(path.resolve(file))
-    .on('error', console.log)
-    .pipe(tar.x({ C: dest, sync: true }))
-    .on('entry', (entry) => {
-      progress.tick(1);
-    }).on('end', () => {
-      console.log('::::::::::::::::: resolve readdirSync');
-      resolve(files);
-    }).on('error', (err) => {
-      console.log('::::::::::::::::: error', err);
-      reject();
-    });
+
+    const percent = [];
+    fs.createReadStream(path.resolve(file))
+      .on("error", console.log)
+      .pipe(tar.x({ C: dest, sync: true }))
+      .on("entry", (entry) => {
+        progress.tick(1);
+        if (!Object.keys(electronWindow).length) {
+          return;
+        }
+        const pct = Number(((length / totalLength) * 100).toFixed(0));
+        if (percent[pct]) {
+          return;
+        }
+        percent[pct] = 1;
+        electronWindow.global.webContents.send("response-cmd", myConfigId, pct);
+      })
+      .on("end", () => {
+        console.log("::::::::::::::::: resolve readdirSync");
+        resolve(files);
+      })
+      .on("error", (err) => {
+        console.log("::::::::::::::::: error", err);
+        reject();
+      });
   });
 }
 
-export default async (file: string, dest: string) => {
-  return Promise.resolve(await unPackTarGz(file, dest));
+export default async (file: string, dest: string, myConfigId: Number) => {
+  return Promise.resolve(await unPackTarGz(file, dest, myConfigId));
 };

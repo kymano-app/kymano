@@ -19,15 +19,5 @@ export default [
 		output: [
 			{ file: pkg.main, format: 'cjs' }
 		]
-	},
-    {
-		input: 'bug.ts',
-		external: ['ms'],
-		plugins: [
-			typescript() // so Rollup can convert TypeScript to JavaScript
-		],
-		output: [
-			{ file: pkg.bug, format: 'cjs' }
-		]
 	}
 ];

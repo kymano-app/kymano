@@ -1,6 +1,6 @@
 import path from "path";
 import { QemuLaunchException } from "../exceptions/qemuLaunchException";
-import getArch from "./getArch";
+import { getArch } from "./getArch";
 import getPlatform from "./getPlatform";
 
 const spawn = require('await-spawn');

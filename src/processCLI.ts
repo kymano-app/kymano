@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import getUserDataPath from './commands/service/getUserDataPath';
+import {getUserDataPath} from './commands/service/getUserDataPath';
 import { DataSource } from './dataSource/config/dataSource';
 import { Kymano, QemuCommands } from './index';
 const pjson = require('../package.json');

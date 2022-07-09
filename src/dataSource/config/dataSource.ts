@@ -15,17 +15,30 @@ export class DataSource {
     cli_alias: any,
     configName: string,
     config_id: any,
-    drivesNames: any[]
+    drivesNames: any[],
+    internal: boolean
   ) => {
+    console.log(
+      `src/dataSource/config/dataSource.ts:21 internal:`,
+      internal,
+      Number(internal)
+    );
     const vmName = await this.getMyVmName(configName);
 
     const id = await this.db
       .prepare(
         `INSERT INTO my_config 
-        (cli_alias, config_version, config_id, vm_name, disks) 
-        VALUES (?, ?, ?, ?, json(?))`
+        (cli_alias, config_v, config_id, vm_name, disks, internal) 
+        VALUES (?, ?, ?, ?, json(?), ?)`
       )
-      .run(cli_alias, "1", config_id, vmName, JSON.stringify(drivesNames)).lastInsertRowid;
+      .run(
+        cli_alias,
+        "1",
+        config_id,
+        vmName,
+        JSON.stringify(drivesNames),
+        Number(internal)
+      ).lastInsertRowid;
 
     return [id, vmName];
   };
@@ -115,6 +128,31 @@ export class DataSource {
     );
   };
 
+  public addConfigToHistory = async (
+    version: string,
+    name: any,
+    releaseDescription: any,
+    config: any,
+    picture: string,
+    previous_id: Number
+  ) => {
+    const sql = `INSERT INTO config_v1_history (
+    version,
+    name,
+    releaseDescription,
+    config,
+    picture,
+    previous_id)
+    VALUES (?, ?, ?, ?, ?, ?)`;
+    console.log(sql);
+    const lastInsertRowid = await this.db
+      .prepare(sql)
+      .run(version, name, releaseDescription, config, picture, previous_id)
+      .lastInsertRowid;
+
+    return lastInsertRowid;
+  };
+
   private getMyVmName = async (configName: string) => {
     const my_vm_names = await this.db
       .prepare(`SELECT vm_name FROM my_config ORDER BY id ASC`)
@@ -141,13 +179,13 @@ export class DataSource {
 
     // console.log("lastInsertRowid", lastInsertRowid);
 
-    return  `${configName}-${newNumber}`;
+    return `${configName}-${newNumber}`;
   };
 
   public getConfigByCliAlias = async (alias: string) => {
     const my_config = await this.db
       .prepare(
-        `SELECT config_id, config_version, config_history_id 
+        `SELECT config_id, config_v, config_history_id 
       FROM my_config 
       WHERE cli_alias = ? 
       ORDER BY id DESC 
@@ -161,7 +199,7 @@ export class DataSource {
       const config_v1 = await this.db
         .prepare(
           `SELECT config, name 
-          FROM config_v${my_config.config_version} 
+          FROM config_v${my_config.config_v} 
           WHERE id = ? 
           LIMIT 1`
         )
@@ -169,7 +207,7 @@ export class DataSource {
 
       if (my_config.config_history_id) {
         const config_history = await this.db
-          .prepare(`SELECT config FROM config_history WHERE id = ? LIMIT 1`)
+          .prepare(`SELECT config FROM config_v1_history WHERE id = ? LIMIT 1`)
           .get(my_config.config_history_id);
 
         return [JSON.parse(config_history.config), config_v1.name];
@@ -180,16 +218,47 @@ export class DataSource {
     return [];
   };
 
-  public getMyVms = async () => {
+  public getMyVmsWithoutInternals = async () => {
     const data = await this.db
       .prepare(
         `
-      SELECT vm_name, my_config.id as my_vm_name_id, config, description, picture, config_v1.id as config_id
-      FROM my_config
-      LEFT JOIN config_v1 ON my_config.config_id = config_v1.id
-      WHERE config_v1.type = 'searchable'
-      ORDER BY my_config.id DESC
-      `
+        SELECT *
+        FROM(
+                SELECT vm_name,
+                    my_config.id as my_vm_id,
+                    config_v1.id as id,
+                    'actual' as type,
+                    config_v1.history_id as config_history_id,
+                    picture,
+                    releaseDescription,
+                    config,
+                    internal,
+                    updated,
+                    config_v1.version,
+                    status,
+                    pid
+                FROM my_config
+                    INNER JOIN config_v1 ON my_config.config_id = config_v1.id
+                WHERE config_v1.type = 'searchable'
+                UNION
+                SELECT vm_name,
+                    my_config.id as my_vm_id,
+                    config_v1_history.id as id,
+                    'history' as type,
+                    config_v1_history.previous_id as config_history_id,
+                    picture,
+                    releaseDescription,
+                    config,
+                    internal,
+                    updated,
+                    config_v1_history.version,
+                    status,
+                    pid
+                FROM my_config
+                    INNER JOIN config_v1_history ON my_config.config_history_id = config_v1_history.id
+            )
+        WHERE internal = 0
+        ORDER BY my_vm_id DESC`
       )
       .all();
 
@@ -200,6 +269,15 @@ export class DataSource {
     const data = await this.db
       .prepare("SELECT * FROM config_v1 WHERE id = ? ")
       .get(id);
+
+    return data;
+  };
+
+  public getConfigByRepoIdAndIndex = async (repoId: Number, index: string) => {
+    const data = await this.db
+      .prepare("SELECT * FROM config_v1 WHERE repo_id = ? AND `index` = ?")
+      .get(repoId, index);
+    console.log("getConfigByRepoIdAndIndex", repoId, index);
 
     return data;
   };
@@ -248,11 +326,10 @@ export class DataSource {
   };
 
   public insertMyDisk = async (name: string) => {
-      const sql = `INSERT INTO my_disk (name) VALUES (?)`;
-      const diskId = await this.db.prepare(sql).run(name).lastInsertRowid;
-      return diskId;
+    const sql = `INSERT INTO my_disk (name) VALUES (?)`;
+    const diskId = await this.db.prepare(sql).run(name).lastInsertRowid;
+    return diskId;
   };
-
 
   public isVmNameAvailable = async (vmName: string) => {
     const exists = this.db
@@ -271,30 +348,46 @@ export class DataSource {
   public getConfigByMyConfigId = async (myConfigId: Number) => {
     const data = await this.db
       .prepare(
-        `SELECT config_v1.config, config_v1.name
-          FROM config_v1 
-          LEFT JOIN my_config ON my_config.config_id = config_v1.id 
+        `SELECT name, config
+          FROM my_config
+              INNER JOIN config_v1 ON my_config.config_id = config_v1.id
+          WHERE my_config.id = ?
+          UNION
+          SELECT name, config
+          FROM my_config
+              INNER JOIN config_v1_history ON my_config.config_history_id = config_v1_history.id
           WHERE my_config.id = ?`
       )
-      .get(myConfigId);
+      .get(myConfigId, myConfigId);
     console.log(data);
     return [JSON.parse(data.config), data.name];
+  };
+
+  public getConfigHistoryByIdV1 = async (configHistoryId: Number) => {
+    const data = await this.db
+      .prepare(
+        `SELECT *
+          FROM config_v1_history 
+          WHERE id = ?`
+      )
+      .all(configHistoryId);
+    console.log(data);
+    return data[0];
   };
 
   // public getMyLocalConfig = async (name: string) => {
   //   const data = await this.db
   //     .prepare(
-  //       `SELECT my_local_config.config 
-  //         FROM my_local_config 
-  //         LEFT JOIN my_vm_name 
-  //           ON my_vm_name.id = my_local_config.my_vm_name_id 
+  //       `SELECT my_local_config.config
+  //         FROM my_local_config
+  //         LEFT JOIN my_vm_name
+  //           ON my_vm_name.id = my_local_config.my_vm_name_id
   //         WHERE my_vm_name.name = ?`
   //     )
   //     .get(name);
   //   console.log(data.config);
   //   return JSON.parse(data.config);
   // };
-
 
   public getMyConfigById = async (id: Number) => {
     const data = await this.db
@@ -357,7 +450,8 @@ export class DataSource {
             path.basename(from),
             lastInsertRowid,
             configIndex,
-            configVersion
+            configVersion,
+            value.type
           );
           console.log("info::::::::", info);
         })
@@ -404,15 +498,18 @@ export class DataSource {
       releaseDescription TEXT,
       config JSON HIDDEN,
       type TEXT,
-      previous_id INT default '0'
+      history_v INT default '0',
+      history_id INT default '0'
     )`);
 
-    await this.db.exec(`CREATE TABLE config_history (
+    await this.db.exec(`CREATE TABLE config_v1_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       version TEXT NOT NULL,
+      name TEXT NOT NULL,
       releaseDescription TEXT NOT NULL,
+      picture TEXT NOT NULL,
       config TEXT NOT NULL,
-      configSystemVersion TEXT NOT NULL,
+      previous_v default '0',
       previous_id INT default '0'
     )`);
 
@@ -446,11 +543,16 @@ export class DataSource {
     await this.db.exec(`CREATE TABLE my_config (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cli_alias TEXT,
-      config_version INT NOT NULL,
+      config_v INT NOT NULL,
       config_id INT NOT NULL,
+      config_history_v INT,
       config_history_id INT,
+      internal INT default '0',
+      updated INT default '0',
       vm_name TEXT,
-      disks JSON HIDDEN
+      disks JSON HIDDEN,
+      pid INT,
+      status TEXT
     )`);
 
     // await this.db.exec(`CREATE TABLE my_local_config_layer (
@@ -493,6 +595,185 @@ export class DataSource {
 
   public getMyVmDisks = async () => {
     return await this.db.prepare(`SELECT id, disks FROM my_config`).all();
+  };
+
+  public changeVmName = async (name: any, id: any) => {
+    console.log("name:", name, id);
+
+    await this.db
+      .prepare("UPDATE my_config SET vm_name = ? WHERE id = ?")
+      .run(name, id);
+  };
+
+  public updateRepoVersion = async (repoId: Number, version: Number) => {
+    await this.db
+      .prepare("UPDATE repo_v1 SET version = ? WHERE id = ?")
+      .run(version, repoId);
+  };
+
+  public updateConfigPreviousId = async (id: Number, previousId: Number) => {
+    console.log(id, previousId);
+
+    await this.db
+      .prepare("UPDATE config_v1 SET history_id = ? WHERE id = ?")
+      .run(previousId, id);
+  };
+
+  public changeConfigToPreviousIdInMyConfigV1 = async (
+    configId: Number,
+    newIdInHistory: Number
+  ) => {
+    console.log("changeConfigToPreviousIdInMyConfig", configId, newIdInHistory);
+
+    await this.db
+      .prepare(
+        `UPDATE my_config
+          SET config_history_id = ?,
+              config_history_v = 1,
+              config_id = 0,
+              config_v = 0,
+              updated = 1
+          WHERE config_id = ?`
+      )
+      .run(newIdInHistory, configId);
+  };
+
+  public getLatestConfigByHistoryIdV1 = async (historyId: Number) => {
+    let previous_id = historyId;
+    do {
+      const previous_id_obj = await this.db
+        .prepare(`SELECT id FROM config_v1_history WHERE previous_id = ?`)
+        .get(previous_id);
+      console.log(
+        `src/dataSource/config/dataSource.ts:622 previous_id_obj`,
+        previous_id_obj
+      );
+      if (previous_id_obj) {
+        previous_id = previous_id_obj.id;
+      } else {
+        break;
+      }
+      console.log(
+        `src/dataSource/config/dataSource.ts:611 previous_id`,
+        previous_id
+      );
+    } while (previous_id);
+
+    console.log(
+      `src/dataSource/config/dataSource.ts:634 previous_id`,
+      previous_id
+    );
+
+    let config_id = await this.db
+      .prepare(`SELECT id FROM config_v1 WHERE history_id = ?`)
+      .get(previous_id).id;
+
+    return this.getConfigById(config_id);
+  };
+
+  public updateConfigInMyConfig = async (myConfigId: Number) => {
+    const config_history_id = await this.db
+      .prepare(`SELECT config_history_id FROM my_config WHERE id = ?`)
+      .get(myConfigId).config_history_id;
+    console.log(
+      `src/dataSource/config/dataSource.ts:605 config_history_id`,
+      config_history_id
+    );
+    let previous_id = config_history_id;
+    do {
+      const previous_id_obj = await this.db
+        .prepare(`SELECT id FROM config_v1_history WHERE previous_id = ?`)
+        .get(previous_id);
+      console.log(
+        `src/dataSource/config/dataSource.ts:622 previous_id_obj`,
+        previous_id_obj
+      );
+      if (previous_id_obj) {
+        previous_id = previous_id_obj.id;
+      } else {
+        break;
+      }
+      console.log(
+        `src/dataSource/config/dataSource.ts:611 previous_id`,
+        previous_id
+      );
+    } while (previous_id);
+
+    console.log(
+      `src/dataSource/config/dataSource.ts:634 previous_id`,
+      previous_id
+    );
+
+    let config_id = await this.db
+      .prepare(`SELECT id FROM config_v1 WHERE history_id = ?`)
+      .get(previous_id).id;
+
+    console.log(
+      `src/dataSource/config/dataSource.ts:631 config_id, myConfigId`,
+      config_id,
+      myConfigId
+    );
+    await this.db
+      .prepare(
+        `UPDATE my_config
+          SET config_v = 1,
+              config_id = ?,
+              config_history_v = 0,
+              config_history_id = 0,
+              updated = 1
+          WHERE id = ?`
+      )
+      .run(config_id, myConfigId);
+  };
+
+  public rollbackConfigInMyConfigV1 = async (
+    myConfigId: Number,
+    historyId: Number
+  ) => {
+    await this.db
+      .prepare(
+        `UPDATE my_config
+          SET config_v = 0,
+              config_id = 0,
+              config_history_v = 1,
+              config_history_id = ?,
+              updated = 1
+          WHERE id = ?`
+      )
+      .run(historyId, myConfigId);
+  };
+
+  public updatePidAndStatusInMyConfig = async (
+    myConfigId: Number,
+    pid: Number,
+    status: string
+  ) => {
+    await this.db
+      .prepare(
+        `UPDATE my_config
+          SET pid = ?,
+              status = ?
+          WHERE id = ?`
+      )
+      .run(pid, status, myConfigId);
+  };
+
+  public getHistoryIdFromConfigV1 = async (configId: Number) => {
+    return await this.db
+      .prepare(`SELECT history_id FROM config_v1 WHERE id = ?`)
+      .get(configId).history_id;
+  };
+
+  public getPreviousIdFromConfigHistoryV1 = async (configHistoryId: Number) => {
+    return await this.db
+      .prepare(`SELECT previous_id FROM config_v1_history WHERE id = ?`)
+      .get(configHistoryId).previous_id;
+  };
+
+  public getMyConfigForUpdate = async () => {
+    return await this.db
+      .prepare(`SELECT id FROM my_config WHERE config_history_id > 0`)
+      .all();
   };
 
   public getVmsFromConfig = async (
@@ -565,10 +846,10 @@ export class DataSource {
   // }) => {
   //   const my_local_config = this.db
   //     .prepare(
-  //       `SELECT my_local_config.id 
-  //               FROM my_local_config 
-  //               LEFT JOIN my_vm_name 
-  //                 ON my_vm_name.id = my_local_config.my_vm_name_id 
+  //       `SELECT my_local_config.id
+  //               FROM my_local_config
+  //               LEFT JOIN my_vm_name
+  //                 ON my_vm_name.id = my_local_config.my_vm_name_id
   //               WHERE my_vm_name.name = ?`
   //     )
   //     .get(config.name);

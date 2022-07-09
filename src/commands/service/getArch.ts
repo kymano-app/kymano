@@ -1,6 +1,6 @@
 const os = require('os');
 
-export default () => {
+export const getArch = () => {
   switch (os.arch()) {
     case 'arm64':
       return 'arm64';

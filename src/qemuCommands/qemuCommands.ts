@@ -1,8 +1,8 @@
 import path from "path";
 import { execCommand } from "../commands/service/execCommand";
-import getArch from "../commands/service/getArch";
+import { getArch } from "../commands/service/getArch";
 import getPlatform from "../commands/service/getPlatform";
-import getUserDataPath from "../commands/service/getUserDataPath";
+import { getUserDataPath } from "../commands/service/getUserDataPath";
 import { QEMU_DEFAULT } from "../consts";
 import isFileExist from "../service/isFileExist";
 

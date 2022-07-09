@@ -1,4 +1,4 @@
-import getArch from "./getArch";
+import { getArch } from "./getArch";
 
 export const getExecutionType = (arch: string) => {
   if (arch !== getArch()) {

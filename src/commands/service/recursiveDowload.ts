@@ -1,19 +1,26 @@
+import path from "path";
 import isFileExist from "../../service/isFileExist";
 import downloadAndExtract from "./downloadAndExtract";
 import { getFileNameFromUrl } from "./getFileNameFromUrl";
-import path from 'path';
 import { joinFiles } from "./joinFiles";
 
-const fs = require('fs');
-const tmp = require('tmp');
+const fs = require("fs");
+const tmp = require("tmp");
 
-export const recursiveDowload = async (url: string, firstFile: string = "") => {
+export const recursiveDownload = async (
+  url: string,
+  firstFile: string = "",
+  driveName: string,
+  myConfigId: Number,
+  type: string,
+  name: string
+) => {
   const tmpDir = tmp.dirSync();
 
   console.log("recursiveDowload::::::::::::::", url, firstFile);
   const unpackedDowloadedTmp = path.join(tmpDir.name, getFileNameFromUrl(url));
   console.log("layerFileTmp::::::::", unpackedDowloadedTmp);
-  await downloadAndExtract(url, tmpDir.name);
+  await downloadAndExtract(url, tmpDir.name, myConfigId, type, name);
 
   console.log("readFileSync:::", unpackedDowloadedTmp);
 
@@ -40,7 +47,7 @@ export const recursiveDowload = async (url: string, firstFile: string = "") => {
   if (isFileExist(next)) {
     console.log("readFileSync:", next);
     var newUrl = fs.readFileSync(next, "utf8").trim();
-    await recursiveDowload(newUrl, firstFile);
+    await recursiveDownload(newUrl, firstFile, driveName, myConfigId, type, name);
   }
   // } else {
   //   console.log('fileHash1:::::::')
