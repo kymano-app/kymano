@@ -2,6 +2,29 @@ export { Kymano } from "./commands/kymano";
 export { QEMU_DEFAULT } from "./consts";
 export { DataSource } from "./dataSource/config/dataSource";
 export { QemuCommands } from "./qemuCommands/qemuCommands";
-export { globalSockets, electronWindow, shiftMessagesQueue } from "./global";
+export {
+  globalSockets,
+  electronWindow,
+  shiftMessagesQueue,
+  pushGuestFsQueue,
+  setIp,
+  shiftGuestFsQueue,
+  shiftGuestFsQueue2,
+  ip,
+  mounted,
+  pids
+} from "./global";
 export { getUserDataPath } from "./commands/service/getUserDataPath";
 export { getArch } from "./commands/service/getArch";
+export {
+  createConnection,
+  execInGuestfs,
+  searchInGuestfs,
+  readLine,
+  exec,
+  sleep,
+  sleepAndResolve,
+  delDrives,
+  delDrivesViaMonitor,
+  addDriveViaMonitor,
+} from "./service/sockets";

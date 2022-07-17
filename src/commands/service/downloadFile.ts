@@ -58,20 +58,15 @@ async function downloadFile(
 
     pushMessagesQueue(pct);
 
-    if (!Object.keys(electronWindow).length) {
-      console.log(
-        `src/commands/service/downloadFile.ts:43 !Object.keys(electronWindow).length`
+    if (Object.keys(electronWindow).length) {
+      electronWindow.global.webContents.send(
+        "downloading",
+        type,
+        name,
+        myConfigId,
+        pct
       );
-      return;
     }
-
-    electronWindow.global.webContents.send(
-      "downloading",
-      type,
-      name,
-      myConfigId,
-      pct
-    );
   });
   data.pipe(writer);
 

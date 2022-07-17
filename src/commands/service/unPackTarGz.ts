@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import tar from "tar";
+import { electronWindow } from "../../global";
 
 const ProgressBar = require("progress");
 
@@ -33,20 +34,24 @@ async function unPackTarGz(file: string, dest: string, myConfigId: Number) {
   return new Promise<void>((resolve, reject) => {
 
     const percent = [];
+    let num = 0;
     fs.createReadStream(path.resolve(file))
       .on("error", console.log)
       .pipe(tar.x({ C: dest, sync: true }))
       .on("entry", (entry) => {
         progress.tick(1);
+        num++;
         if (!Object.keys(electronWindow).length) {
           return;
         }
-        const pct = Number(((length / totalLength) * 100).toFixed(0));
+        const pct = Number(((num / numberOfFiles) * 100).toFixed(0));
         if (percent[pct]) {
           return;
         }
         percent[pct] = 1;
-        electronWindow.global.webContents.send("response-cmd", myConfigId, pct);
+        if (Object.keys(electronWindow).length) {
+          electronWindow.global.webContents.send("response-cmd", myConfigId, pct);
+        }
       })
       .on("end", () => {
         console.log("::::::::::::::::: resolve readdirSync");

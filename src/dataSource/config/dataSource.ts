@@ -594,7 +594,7 @@ export class DataSource {
   };
 
   public getMyVmDisks = async () => {
-    return await this.db.prepare(`SELECT id, disks FROM my_config`).all();
+    return await this.db.prepare(`SELECT id, disks, vm_name FROM my_config`).all();
   };
 
   public changeVmName = async (name: any, id: any) => {

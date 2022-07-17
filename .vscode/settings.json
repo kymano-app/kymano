@@ -1,3 +1,6 @@
 {
   "cSpell.words": ["AUTOINCREMENT"],
+  "eslint.enable": false,
+  "typescript.suggest.paths": true,
+  "javascript.suggest.paths": true,
 }

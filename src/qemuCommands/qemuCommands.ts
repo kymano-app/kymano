@@ -85,7 +85,7 @@ export class QemuCommands {
     try {
       const qemuImg = `${getUserDataPath()}/qemu/${QEMU_DEFAULT[getPlatform()]}-${getPlatform()}-${getArch()}/bin/qemu-img`;
       const response = await execCommand(
-        ["convert", "-p", importingPath, "-O", "raw", layerPath],
+        ["convert", "-f", "parallels", "-p", importingPath, "-O", "raw", layerPath],
         qemuImg,
         "pipe"
       );
