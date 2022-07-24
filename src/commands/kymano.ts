@@ -5,7 +5,7 @@ import path from "path";
 import { read } from "simple-yaml-import";
 import si from "systeminformation";
 import { DataSource } from "../dataSource/config/dataSource";
-import { electronWindow, globalSockets } from "../global";
+import { globalSockets } from "../global";
 import { QemuCommands } from "../qemuCommands/qemuCommands";
 import { fileHash, hash } from "../service/hash";
 import isFileExist from "../service/isFileExist";
@@ -16,7 +16,7 @@ import downloadAndExtract from "./service/downloadAndExtract";
 import downloadFile from "./service/downloadFile";
 import { getArch } from "./service/getArch";
 import { getExecutionType } from "./service/getExecutionType";
-import getPlatform from "./service/getPlatform";
+import { getPlatform } from "./service/getPlatform";
 import getQemuArch from "./service/getQemuArch";
 import { getUserDataPath } from "./service/getUserDataPath";
 import { isGithubOrHttps } from "./service/isGithubOrHttps";
@@ -808,7 +808,7 @@ export class Kymano {
     const fileTmp = tmp.fileSync().name;
 
     await this.qemuCommands.convert(importingFilePath, fileTmp);
-    const diskId = await this.dataSource.insertMyDisk(name);
+    const diskId = await this.dataSource.insertMyDisk(name, path.extname(importingFilePath));
     const diskPath = `${this.userDrivesDirectoryDisk}/${diskId}`;
     console.log("diskPath", diskPath);
 

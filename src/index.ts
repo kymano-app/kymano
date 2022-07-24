@@ -6,6 +6,7 @@ export {
   globalSockets,
   electronWindow,
   shiftMessagesQueue,
+  shiftQemuImgConvertingQueue,
   pushGuestFsQueue,
   setIp,
   shiftGuestFsQueue,
@@ -16,6 +17,7 @@ export {
 } from "./global";
 export { getUserDataPath } from "./commands/service/getUserDataPath";
 export { getArch } from "./commands/service/getArch";
+export { getPlatform } from "./commands/service/getPlatform";
 export {
   createConnection,
   execInGuestfs,

@@ -1,13 +1,14 @@
 import path from "path";
 import { execCommand } from "../commands/service/execCommand";
+import { execCommandWithProgress } from "../commands/service/execCommandWithProgress";
 import { getArch } from "../commands/service/getArch";
-import getPlatform from "../commands/service/getPlatform";
+import { getPlatform } from "../commands/service/getPlatform";
 import { getUserDataPath } from "../commands/service/getUserDataPath";
 import { QEMU_DEFAULT } from "../consts";
 import isFileExist from "../service/isFileExist";
 
-const spawn = require('await-spawn');
-const fsAsync = require('fs').promises;
+const spawn = require("await-spawn");
+const fsAsync = require("fs").promises;
 
 export class QemuCommands {
   readonly qemuImgBinPath: string;
@@ -22,23 +23,19 @@ export class QemuCommands {
     try {
       await spawn("chmod", ["+x", this.qemuImgBinPath], { stdio: "inherit" });
       await spawn("xattr", ["-cr", this.qemuImgBinPath], { stdio: "inherit" });
-  
-      const response = await execCommand(['commit', layerPath], this.qemuImgBinPath, 'pipe')
-  
+
+      const response = await execCommand(["commit", layerPath], this.qemuImgBinPath, "pipe");
+
       console.log(response.toString(), layerPath);
     } catch (e) {
       console.log(e, layerPath);
     }
   };
 
-  public getBackingLayerHash = async (imgpath: string) => {  
+  public getBackingLayerHash = async (imgpath: string) => {
     try {
-      const qemuInfo = await execCommand(
-        ["info", imgpath, "--output=json"],
-        this.qemuImgBinPath,
-        'pipe'
-      );
-  
+      const qemuInfo = await execCommand(["info", imgpath, "--output=json"], this.qemuImgBinPath, "pipe");
+
       const parsedResponse = JSON.parse(qemuInfo);
       console.log("parsedResponse", parsedResponse);
       if (parsedResponse["backing-filename"]) {
@@ -49,82 +46,56 @@ export class QemuCommands {
       console.log("ERR::::::::::::", e);
     }
     return undefined;
-  }
+  };
 
-  public changeBackingFile = async (
-    backingFile: string,
-    containerFile: string,
-    qemuDirectory: string
-  ) => {
+  public changeBackingFile = async (backingFile: string, containerFile: string, qemuDirectory: string) => {
     const qemuImg = `${qemuDirectory}/bin/qemu-img`;
-    console.log('qemuImg:::;', qemuImg)
-    
-    let dir = path.dirname(containerFile)
+    console.log("qemuImg:::;", qemuImg);
+
+    let dir = path.dirname(containerFile);
     if (!isFileExist(dir)) {
-      console.log('mkdir :::', dir);
+      console.log("mkdir :::", dir);
       await fsAsync.mkdir(dir);
     }
 
     console.log("createLayer1", qemuImg, backingFile, containerFile);
-    const cmd = [
-      "rebase",
-      "-f",
-      "qcow2",
-      "-F",
-      "qcow2",
-      "-u",
-      "-b",
-      backingFile,
-      containerFile,
-    ];
-  
-    const response = await execCommand(cmd, qemuImg, "pipe")
+    const cmd = ["rebase", "-f", "qcow2", "-F", "qcow2", "-u", "-b", backingFile, containerFile];
+
+    const response = await execCommand(cmd, qemuImg, "pipe");
   };
 
   public convert = async (importingPath: string, layerPath: string) => {
     try {
-      const qemuImg = `${getUserDataPath()}/qemu/${QEMU_DEFAULT[getPlatform()]}-${getPlatform()}-${getArch()}/bin/qemu-img`;
-      const response = await execCommand(
-        ["convert", "-f", "parallels", "-p", importingPath, "-O", "raw", layerPath],
+      const qemuImg = `${getUserDataPath()}/qemu/${
+        QEMU_DEFAULT[getPlatform()]
+      }-${getPlatform()}-${getArch()}/bin/qemu-img`;
+      await execCommandWithProgress(
+        ["convert", "-p", importingPath, "-O", "raw", layerPath],
         qemuImg,
         "pipe"
       );
-      //convert -f parallels original.hds -O raw converted.raw
-      console.log(response.toString());
+      console.log(`src/qemuCommands/qemuCommands.ts:76 execCommandWithProgress`);
     } catch (e) {
-      console.log(e);
+        throw Error(e.stderr.toString());
     }
   };
 
-  public createContainer = async (
-    backingFile: string,
-    containerFile: string
-  ) => {
-
-    let dir = path.dirname(containerFile)
+  public createContainer = async (backingFile: string, containerFile: string) => {
+    let dir = path.dirname(containerFile);
     if (!isFileExist(dir)) {
-      console.log('mkdir :::', dir);
+      console.log("mkdir :::", dir);
       await fsAsync.mkdir(dir);
     }
 
     console.log("createLayer2", this.qemuImgBinPath, backingFile, containerFile);
-    const cmd = [
-      "create",
-      "-f",
-      "qcow2",
-      "-F",
-      "qcow2",
-      "-b",
-      backingFile,
-      containerFile,
-    ];
+    const cmd = ["create", "-f", "qcow2", "-F", "qcow2", "-b", backingFile, containerFile];
 
-    const response = await execCommand(cmd, this.qemuImgBinPath, 'pipe')
+    const response = await execCommand(cmd, this.qemuImgBinPath, "pipe");
   };
 
   public createImg = async (imgPath: string) => {
     try {
-      if (getPlatform()==='macos') {
+      if (getPlatform() === "macos") {
         await spawn("chmod", ["+x", this.qemuImgBinPath], { stdio: "inherit" });
         await spawn("xattr", ["-cr", this.qemuImgBinPath], { stdio: "inherit" });
       }
@@ -132,40 +103,36 @@ export class QemuCommands {
       if (!isFileExist(dir)) {
         await fsAsync.mkdir(dir);
       }
-      const response = await execCommand(['create', '-f', 'qcow2', `${imgPath}`, '4G'], this.qemuImgBinPath, "pipe")
-  
-      console.log('response::::::::', response.toString());
+      const response = await execCommand(["create", "-f", "qcow2", `${imgPath}`, "4G"], this.qemuImgBinPath, "pipe");
+
+      console.log("response::::::::", response.toString());
     } catch (e) {
-      console.log('ERR::::::::::::', e);
+      console.log("ERR::::::::::::", e);
     }
   };
-  
+
   public startVm = (confparams: any, qemuBinary: string) => {
     //try {
-      console.log('qemuBinary11::::::',qemuBinary);
-      let divider = `/`
-      if (getPlatform() === 'windows') {
-        divider = `\\`;
-      }
-      const mainPath = qemuBinary.split(divider).slice(0, -2).join(divider);
-      let share = path.join(mainPath, 'share/qemu');
-      if (getPlatform() === 'windows') {
-        share = path.join(mainPath, 'share');
-      }
-      console.log('share::::::::::', share)
-      const resp = execCommand([
-        "-L",
-        share,
-        ...confparams,
-      ], qemuBinary, ['inherit', 'inherit', null]);
-      console.log('resp.child1', resp.child.pid);
-      return resp;
+    console.log("qemuBinary11::::::", qemuBinary);
+    let divider = `/`;
+    if (getPlatform() === "windows") {
+      divider = `\\`;
+    }
+    const mainPath = qemuBinary.split(divider).slice(0, -2).join(divider);
+    let share = path.join(mainPath, "share/qemu");
+    if (getPlatform() === "windows") {
+      share = path.join(mainPath, "share");
+    }
+    console.log("share::::::::::", share);
+    const resp = execCommand(["-L", share, ...confparams], qemuBinary, ["inherit", "inherit", null]);
+    console.log("resp.child1", resp.child.pid);
+    return resp;
 
-      // await exec(
-      //   `osascript -e 'tell application "System Events"' -e 'set frontmost of every process whose unix id is ${qemuProc.pid} to true' -e 'end tell'`
-      // );
+    // await exec(
+    //   `osascript -e 'tell application "System Events"' -e 'set frontmost of every process whose unix id is ${qemuProc.pid} to true' -e 'end tell'`
+    // );
     //} catch (error) {
-      //console.error(error);
+    //console.error(error);
     //}
-  }
+  };
 }

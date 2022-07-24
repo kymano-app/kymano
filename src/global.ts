@@ -1,6 +1,7 @@
 export var globalSockets = {};
 export var electronWindow = {};
 export var messagesQueue = [];
+export var qemuImgConvertingQueue = [];
 export var ip: string;
 export var pids = [];
 export var diskIds = [];
@@ -10,8 +11,16 @@ export var socketData = {};
 export var cmdId = 0;
 export var mounted = {};
 
+export const pushQemuImgConvertingQueue = (element: any) => {
+  qemuImgConvertingQueue.push(element);
+};
+
+export const shiftQemuImgConvertingQueue = () => {
+  return qemuImgConvertingQueue.shift();
+};
+
 export const pushMessagesQueue = (element: any) => {
-    messagesQueue.push(element);
+  messagesQueue.push(element);
 };
 
 export const shiftMessagesQueue = () => {
@@ -43,10 +52,10 @@ export const shiftGuestFsQueue2 = () => {
 
 export const shiftSocketData = (worker: string) => {
   if (!socketData[worker]) {
-    console.log('!socketData[worker]', worker);
+    console.log("!socketData[worker]", worker);
     socketData[worker] = [];
   }
-  console.log('shiftSocketData', worker);
+  console.log("shiftSocketData", worker);
   return socketData[worker].shift();
 };
 
@@ -63,10 +72,10 @@ export const lenghtSocketData = (worker: string) => {
 
 export const pushSocketData = (worker: string, data: any) => {
   if (!socketData[worker]) {
-    console.log('!socketData[worker]', worker);
+    console.log("!socketData[worker]", worker);
     socketData[worker] = [];
   }
-  console.log('add', data, worker);
+  console.log("add", data, worker);
   socketData[worker] = [...socketData[worker], ...data];
 };
 

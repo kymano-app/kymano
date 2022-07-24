@@ -325,9 +325,9 @@ export class DataSource {
     }
   };
 
-  public insertMyDisk = async (name: string) => {
-    const sql = `INSERT INTO my_disk (name) VALUES (?)`;
-    const diskId = await this.db.prepare(sql).run(name).lastInsertRowid;
+  public insertMyDisk = async (name: string, extension: string) => {
+    const sql = `INSERT INTO my_disk (name, extension) VALUES (?, ?)`;
+    const diskId = await this.db.prepare(sql).run(name, extension).lastInsertRowid;
     return diskId;
   };
 
@@ -529,6 +529,7 @@ export class DataSource {
     await this.db.exec(`CREATE TABLE my_disk (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
+      extension TEXT NOT NULL,
       my_config_id INT
     )`);
 

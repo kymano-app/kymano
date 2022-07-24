@@ -1,6 +1,6 @@
 const os = require('os');
 
-export default () => {
+export const getPlatform = () => {
   switch (os.platform()) {
     case 'darwin':
       return 'macos';
