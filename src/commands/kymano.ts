@@ -5,15 +5,15 @@ import path from "path";
 import { read } from "simple-yaml-import";
 import si from "systeminformation";
 import { DataSource } from "../dataSource/config/dataSource";
-import { globalSockets } from "../global";
+import { globalSockets, MessagesQueueType } from "../global";
 import { QemuCommands } from "../qemuCommands/qemuCommands";
 import { fileHash, hash } from "../service/hash";
-import isFileExist from "../service/isFileExist";
+import { isFileExist } from "../service/isFileExist";
 import processConfig from "../v1/processConfig";
 import { AliasException } from "./exceptions/aliasException";
 import { addAbsolutePathForRunningDirectory } from "./service/addAbsolutePathForRunningDirectory";
-import downloadAndExtract from "./service/downloadAndExtract";
-import downloadFile from "./service/downloadFile";
+import { downloadAndExtract } from "./service/downloadAndExtract";
+import { downloadFile } from "./service/downloadFile";
 import { getArch } from "./service/getArch";
 import { getExecutionType } from "./service/getExecutionType";
 import { getPlatform } from "./service/getPlatform";
@@ -40,10 +40,7 @@ export class Kymano {
   readonly qemuImgPath: string;
   readonly qemuImgBinPath: string;
 
-  constructor(
-    readonly dataSource: DataSource,
-    readonly qemuCommands: QemuCommands
-  ) {
+  constructor(readonly dataSource: DataSource, readonly qemuCommands: QemuCommands) {
     this.dataSource = dataSource;
     this.qemuCommands = qemuCommands;
     this.userDataPath = getUserDataPath();
@@ -51,11 +48,23 @@ export class Kymano {
     this.userDrivesDirectoryDisk = `${this.userDataPath}/user_layers/disk`;
     this.layersPath = `${this.userDataPath}/layers`;
     this.qemuPath = `${this.userDataPath}/qemu`;
-    this.qemuImgPath = `${
-      this.userDataPath
-    }/qemu/qemu-img-${getPlatform()}-${getArch()}`;
+    this.qemuImgPath = `${this.userDataPath}/qemu/qemu-img-${getPlatform()}-${getArch()}`;
     this.qemuImgBinPath = `${this.qemuImgPath}/bin/qemu-img`;
   }
+
+  public checkAndGetQemu = async () => {
+    if (!isFileExist(this.qemuImgPath)) {
+      await fsAsync.mkdir(this.qemuImgPath);
+      await downloadAndExtract(
+        `https://github.com/kymano-app/qemu/releases/download/qemu-img/qemu-img-${getPlatform()}-${getArch()}.tgz`,
+        this.qemuPath,
+        0,
+        "qemu-img",
+        `${getPlatform()}-${getArch()}`,
+        MessagesQueueType.QemuImgDownloading
+      );
+    }
+  };
 
   private init = async () => {
     if (!isFileExist(this.userDataPath)) {
@@ -79,16 +88,8 @@ export class Kymano {
     if (!isFileExist(this.qemuPath)) {
       await fsAsync.mkdir(this.qemuPath);
     }
-    if (!isFileExist(this.qemuImgPath)) {
-      await fsAsync.mkdir(this.qemuImgPath);
-      await downloadAndExtract(
-        `https://github.com/kymano-app/qemu/releases/download/qemu-img/qemu-img-${getPlatform()}-${getArch()}.tgz`,
-        this.qemuPath,
-        0,
-        "qemu-img",
-        `${getPlatform()}-${getArch()}`
-      );
-    }
+    this.checkAndGetQemu();
+
     console.log("init ok");
   };
 
@@ -164,9 +165,7 @@ export class Kymano {
     let repoId = 0;
     let version = 0;
     for (const repo of reposJson.repos) {
-      [repoId, version] = await this.dataSource.getConfigVersionByRepoUrl(
-        repo.url
-      );
+      [repoId, version] = await this.dataSource.getConfigVersionByRepoUrl(repo.url);
       console.log("version: ", repo.url, version);
       if (!version) {
         console.log("!version");
@@ -188,27 +187,17 @@ export class Kymano {
             console.log(`type: ${latestRepo.configs[index].type}`);
             console.log("config:", latestRepo.configs[index]);
 
-            if (
-              latestRepo.configs[index].type === "searchable" ||
-              latestRepo.configs[index].type === "internal"
-            ) {
+            if (latestRepo.configs[index].type === "searchable" || latestRepo.configs[index].type === "internal") {
               console.log(`config parsing start`);
-              const repoAndYmlVersion =
-                latestRepo.configs[index].from.split(":");
+              const repoAndYmlVersion = latestRepo.configs[index].from.split(":");
               console.log(`repoAndYmlVersion`, repoAndYmlVersion);
               console.log(`index`, index);
               console.log(`repoId`, repoId);
 
               const config = await (async () => {
                 try {
-                  console.log(
-                    `config parsing try ymlPath`,
-                    latestRepo.configs[index].from
-                  );
-                  return await processConfig(
-                    `${repoAndYmlVersion[0]}/${repoAndYmlVersion[1]}`,
-                    tmpRepoDir
-                  );
+                  console.log(`config parsing try ymlPath`, latestRepo.configs[index].from);
+                  return await processConfig(`${repoAndYmlVersion[0]}/${repoAndYmlVersion[1]}`, tmpRepoDir);
                 } catch (error) {
                   console.log("error::::::::", error.message);
                   return undefined;
@@ -224,14 +213,8 @@ export class Kymano {
 
               const prevConfig = await (async () => {
                 try {
-                  console.log(
-                    `config parsing try ymlPath`,
-                    latestRepo.configs[index].from
-                  );
-                  return await this.dataSource.getConfigByRepoIdAndIndex(
-                    repoId,
-                    index
-                  );
+                  console.log(`config parsing try ymlPath`, latestRepo.configs[index].from);
+                  return await this.dataSource.getConfigByRepoIdAndIndex(repoId, index);
                 } catch (error) {
                   console.log("error::::::::", error.message);
                   return undefined;
@@ -257,14 +240,8 @@ export class Kymano {
                   prevConfig.picture,
                   prevConfig.history_id
                 );
-                this.dataSource.updateConfigPreviousId(
-                  prevConfig.id,
-                  Number(idInHistory)
-                );
-                this.dataSource.changeConfigToPreviousIdInMyConfigV1(
-                  prevConfig.id,
-                  Number(idInHistory)
-                );
+                this.dataSource.updateConfigPreviousId(prevConfig.id, Number(idInHistory));
+                this.dataSource.changeConfigToPreviousIdInMyConfigV1(prevConfig.id, Number(idInHistory));
               }
               await this.dataSource.updateRepoVersion(repoId, repo.version);
             }
@@ -285,15 +262,9 @@ export class Kymano {
     };
 
     const sysInfo = await si.get(valueObject);
-    const mainDisplay = sysInfo.graphics.displays.filter(
-      (display: { main: boolean }) => display.main === true
-    )[0];
+    const mainDisplay = sysInfo.graphics.displays.filter((display: { main: boolean }) => display.main === true)[0];
 
-    const result = await this.dataSource.getVmsFromConfig(
-      sysInfo,
-      mainDisplay,
-      kymanoVersion
-    );
+    const result = await this.dataSource.getVmsFromConfig(sysInfo, mainDisplay, kymanoVersion);
     return result;
   };
 
@@ -302,9 +273,7 @@ export class Kymano {
 
     const layerPath = `${this.layersPath}/${hash}`;
 
-    const backingLayerHash = await this.qemuCommands.getBackingLayerHash(
-      layerPath
-    );
+    const backingLayerHash = await this.qemuCommands.getBackingLayerHash(layerPath);
     const backingLayerPath = `${this.layersPath}/${backingLayerHash}`;
 
     const tmpBackingFile = `${backingLayerPath}.tmp`;
@@ -315,10 +284,7 @@ export class Kymano {
 
     const newBackingFileHash = await fileHash(backingLayerPath);
     console.log("newBackingFileHash", newBackingFileHash);
-    fs.copyFileSync(
-      backingLayerPath,
-      `${getUserDataPath()}/layers/${newBackingFileHash}`
-    );
+    fs.copyFileSync(backingLayerPath, `${getUserDataPath()}/layers/${newBackingFileHash}`);
     fs.unlinkSync(backingLayerPath);
     fs.copyFileSync(tmpBackingFile, backingLayerPath);
     fs.unlinkSync(tmpBackingFile);
@@ -331,7 +297,7 @@ export class Kymano {
     console.log("url", url);
     const tmpFile = tmp.fileSync();
     const tmpDir = tmp.dirSync();
-    await downloadFile(url, tmpFile.name, 0, "repo", repoName);
+    await downloadFile(url, tmpFile.name, 0, "repo", repoName, MessagesQueueType.RepoDownloading);
     console.log("downloadFile ok = ", tmpFile.name);
     await unZip(tmpFile.name, tmpDir.name);
     const tmpRepoDir = `${tmpDir.name}/${repoName}-master`;
@@ -343,10 +309,7 @@ export class Kymano {
     console.log("config111:::::::::::", config);
     const nameAndArch = config.name.split("-");
     console.log("nameAndArch:::::::::::", nameAndArch);
-    const drivesNames = this.getDrivesNamesFromConfig(
-      JSON.parse(config.config),
-      nameAndArch[nameAndArch.length - 1]
-    );
+    const drivesNames = this.getDrivesNamesFromConfig(JSON.parse(config.config), nameAndArch[nameAndArch.length - 1]);
     console.log("drivesNames:::::::::::", drivesNames);
     const [myConfigId, vmName] = await this.dataSource.addMyConfig(
       "",
@@ -368,33 +331,19 @@ export class Kymano {
   public runVm = async (myConfigId: Number) => {
     console.log("runVm myConfigId", myConfigId);
 
-    const [config, name] = await this.dataSource.getConfigByMyConfigId(
-      myConfigId
-    );
+    const [config, name] = await this.dataSource.getConfigByMyConfigId(myConfigId);
     const nameAndArch = name.split("-");
     const arch = nameAndArch[nameAndArch.length - 1];
     console.log("runVm myConfigId", myConfigId);
     console.log("runVm config", config);
     console.log("runVm myConfigId", myConfigId);
-    const resp = await this.execConfig(
-      myConfigId,
-      arch,
-      config,
-      true,
-      "remote"
-    );
-    await this.dataSource.updatePidAndStatusInMyConfig(
-      myConfigId,
-      resp[0].child.pid,
-      "launched"
-    );
+    const resp = await this.execConfig(myConfigId, arch, config, true, "remote");
+    await this.dataSource.updatePidAndStatusInMyConfig(myConfigId, resp[0].child.pid, "launched");
     return [resp[0]];
   };
 
   public getDrivesNamesFromMyConfigId = async (myConfigId: Number) => {
-    const [config, name] = await this.dataSource.getConfigByMyConfigId(
-      myConfigId
-    );
+    const [config, name] = await this.dataSource.getConfigByMyConfigId(myConfigId);
     const nameAndArch = name.split("-");
     const arch = nameAndArch[nameAndArch.length - 1];
     console.log("getDrivesNamesFromConfig:::", config, arch);
@@ -450,9 +399,7 @@ export class Kymano {
       let firstStart = false;
       // if (!parsedConfig) {
       firstStart = true;
-      const resp0 = await axios.get(
-        "https://raw.githubusercontent.com/kymano-app/repo/master/cli_aliases.yml"
-      );
+      const resp0 = await axios.get("https://raw.githubusercontent.com/kymano-app/repo/master/cli_aliases.yml");
       const doc = yaml.load(resp0.data);
       console.log("doc:", doc);
       const findAlias = doc.find((elem: any) => elem.name === alias);
@@ -466,40 +413,17 @@ export class Kymano {
       const tmpRepoDir = await this.downloadAndExtract(ymlUrl[0], ymlUrl[1]);
       const repoUrl = `https://github.com/${ymlUrl[0]}/${ymlUrl[1]}`;
       configName = `${nameAndVersion[0]}-${arch}`;
-      const parsedConfig = await processConfig(
-        `/${nameAndVersion[1]}`,
-        `${tmpRepoDir}/${nameAndVersion[0]}-${arch}/`
-      );
-      await this.dataSource.addRepoWithConfigs(
-        repoUrl,
-        nameAndVersion[1],
-        tmpRepoDir,
-        configName
-      );
-      const configId = await this.dataSource.getConfigIdByRepoUrlAndName(
-        repoUrl,
-        configName
-      );
+      const parsedConfig = await processConfig(`/${nameAndVersion[1]}`, `${tmpRepoDir}/${nameAndVersion[0]}-${arch}/`);
+      await this.dataSource.addRepoWithConfigs(repoUrl, nameAndVersion[1], tmpRepoDir, configName);
+      const configId = await this.dataSource.getConfigIdByRepoUrlAndName(repoUrl, configName);
       console.log(`configId: ${configId}`);
 
       const drivesNames = this.getDrivesNamesFromConfig(parsedConfig, arch);
-      const [myConfigId, vmName] = await this.dataSource.addMyConfig(
-        alias,
-        configName,
-        configId,
-        drivesNames,
-        false
-      );
+      const [myConfigId, vmName] = await this.dataSource.addMyConfig(alias, configName, configId, drivesNames, false);
       // }
 
       console.log("parsedConfig:::::::::::", vmName, parsedConfig);
-      const resp = await this.execConfig(
-        myConfigId,
-        arch,
-        parsedConfig,
-        firstStart,
-        "remote"
-      );
+      const resp = await this.execConfig(myConfigId, arch, parsedConfig, firstStart, "remote");
       return [resp[0]];
     }
 
@@ -520,9 +444,7 @@ export class Kymano {
       console.log("os.platform::", os.platform());
 
       // addMyLocalConfig(parsedConfig, db);
-      const vmNameAvailable = await this.dataSource.isVmNameAvailable(
-        parsedConfig.name
-      );
+      const vmNameAvailable = await this.dataSource.isVmNameAvailable(parsedConfig.name);
       if (!vmNameAvailable) {
         console.log("Please select another name");
         process.exit(1);
@@ -532,18 +454,12 @@ export class Kymano {
       // );
       // const config = await this.dataSource.getMyLocalConfig(parsedConfig.name);
       // console.log("execConfig");
-      const resp = await this.execConfig(
-        parsedConfig.name,
-        arch,
-        parsedConfig,
-        false,
-        "local"
-      );
+      const resp = await this.execConfig(parsedConfig.name, arch, parsedConfig, false, "local");
       return [resp[0]];
     }
   };
 
-    private execConfig = async (
+  private execConfig = async (
     myConfigId: any,
     arch: string,
     config: any,
@@ -557,10 +473,7 @@ export class Kymano {
     console.log("executionType::::::", executionType, arch, getArch());
 
     console.log("getPlatform()", getPlatform());
-    console.log(
-      "config:::::::::",
-      config[getPlatform()].local[executionType].config
-    );
+    console.log("config:::::::::", config[getPlatform()].local[executionType].config);
 
     let sockets = {};
     // if (myConfigType === "local") {
@@ -569,11 +482,7 @@ export class Kymano {
     //   sockets = await this.dataSource.getMyConfigSockets(myConfigId);
     // }
 
-    for (
-      let i = 0;
-      i < config[getPlatform()].local[executionType].config.length;
-      i++
-    ) {
+    for (let i = 0; i < config[getPlatform()].local[executionType].config.length; i++) {
       let configLine = config[getPlatform()].local[executionType].config[i];
       //for (let configLine of config[getPlatform()].local[executionType].config) {
       const key = Object.keys(configLine)[0];
@@ -589,8 +498,10 @@ export class Kymano {
           const tmpobj = tmp.fileSync();
           console.log("new socket", tmpobj.name);
           sockets[found[1]] = `${tmpobj.name}.sock`;
-          config[getPlatform()].local[executionType].config[i][key] =
-            configLine[key].replace(found[0], sockets[found[1]]);
+          config[getPlatform()].local[executionType].config[i][key] = configLine[key].replace(
+            found[0],
+            sockets[found[1]]
+          );
         }
       }
     }
@@ -606,10 +517,7 @@ export class Kymano {
     }
     console.log("globalSockets::", globalSockets);
 
-    console.log(
-      "config[getPlatform()].local[executionType].config",
-      config[getPlatform()].local[executionType].config
-    );
+    console.log("config[getPlatform()].local[executionType].config", config[getPlatform()].local[executionType].config);
 
     const qemuVersion = config[getPlatform()].local[executionType].qemu;
     const qemuUrl = `https://github.com/kymano-app/qemu/releases/download/${qemuVersion}/qemu-${qemuVersion}-${getPlatform()}-${getArch()}.tgz`;
@@ -619,14 +527,11 @@ export class Kymano {
         recursive: true,
       });
     }
-    const qemuBinary = path.join(
-      qemuDirectory,
-      `bin/qemu-system-${getQemuArch(arch)}`
-    );
+    const qemuBinary = path.join(qemuDirectory, `bin/qemu-system-${getQemuArch(arch)}`);
     console.log("qemuBinary:::::::::", qemuBinary);
 
     if (!isFileExist(qemuBinary)) {
-      await downloadAndExtract(qemuUrl, qemuDirectory, myConfigId);
+      await downloadAndExtract(qemuUrl, qemuDirectory, myConfigId, "qemuBinary", "", MessagesQueueType.QemuDownloading);
     }
 
     console.log("qemu:::::::", qemuUrl, qemuDirectory, qemuBinary);
@@ -640,16 +545,10 @@ export class Kymano {
       myConfigId
     );
     console.log("configVars:::::::::::", configVars);
-    const confparams = await replaceVarsToDrivePathes(
-      config[getPlatform()].local[executionType].config,
-      configVars
-    );
+    const confparams = await replaceVarsToDrivePathes(config[getPlatform()].local[executionType].config, configVars);
 
     if (firstStart) {
-      console.log(
-        "snapshot::::::",
-        config[getPlatform()].local[executionType].snapshot
-      );
+      console.log("snapshot::::::", config[getPlatform()].local[executionType].snapshot);
       // start vm
       console.log("start");
       const resp = this.qemuCommands.startVm(confparams, qemuBinary);
@@ -693,62 +592,37 @@ export class Kymano {
         } else if (driveData.layers) {
           console.log("driveData.layers::::::::::::::", driveData.layers);
           let backingLayerHash;
-          const lastLayerHash =
-            driveData.layers[driveData.layers.length - 1].hash;
+          const lastLayerHash = driveData.layers[driveData.layers.length - 1].hash;
           if (isFileExist(userDrivePath)) {
-            backingLayerHash = await this.qemuCommands.getBackingLayerHash(
-              userDrivePath
-            );
+            backingLayerHash = await this.qemuCommands.getBackingLayerHash(userDrivePath);
           }
-          console.log(
-            "isFileExist(userDrivePath)",
-            userDrivePath,
-            isFileExist(userDrivePath)
-          );
+          console.log("isFileExist(userDrivePath)", userDrivePath, isFileExist(userDrivePath));
 
           console.log("driveData.layers", driveData.layers);
 
           for (let i in driveData.layers) {
             let layer = driveData.layers[i];
-            console.log(
-              "layer",
-              layer,
-              `${getUserDataPath()}/layers/${layer.hash}`
-            );
+            console.log("layer", layer, `${getUserDataPath()}/layers/${layer.hash}`);
             if (!isFileExist(`${getUserDataPath()}/layers/${layer.hash}`)) {
-              await this.downloadLayer(
-                layer.url,
-                layer.hash,
-                driveName,
-                myConfigId
-              );
+              await this.downloadLayer(layer.url, layer.hash, driveName, myConfigId);
               // ??????????????????????????? backingLayerHash = await getBackingLayerHash(userDrivePath, qemuDirectory);
             }
           }
           console.log("downloadLayer ok");
           console.log("driveData.type:::::::", driveData.type);
-          console.log(
-            "backingLayerHash::::lastLayerHash::",
-            backingLayerHash,
-            lastLayerHash
-          );
+          console.log("backingLayerHash::::lastLayerHash::", backingLayerHash, lastLayerHash);
 
-          if (
-            driveData.type === "system" &&
-            backingLayerHash !== lastLayerHash
-          ) {
+          if (driveData.type === "system" && backingLayerHash !== lastLayerHash) {
             if (snapshot && firstStart) {
-              console.log(
-                "userDrivePath",
-                userDrivePath,
-                myConfigId,
-                userDrivesDirectory
-              );
+              console.log("userDrivePath", userDrivePath, myConfigId, userDrivesDirectory);
               const tmpDir = tmp.dirSync();
               const files = await downloadAndExtract(
                 snapshot.url,
                 tmpDir.name,
-                myConfigId
+                myConfigId,
+                "snapshot",
+                "",
+                MessagesQueueType.SnapshotDownloading
               );
               console.log("files:::::::::::", files);
               fs.renameSync(path.join(tmpDir.name, files[0]), userDrivePath);
@@ -758,10 +632,7 @@ export class Kymano {
                 qemuDirectory
               );
             } else {
-              await this.qemuCommands.createContainer(
-                `${getUserDataPath()}/layers/${lastLayerHash}`,
-                userDrivePath
-              );
+              await this.qemuCommands.createContainer(`${getUserDataPath()}/layers/${lastLayerHash}`, userDrivePath);
             }
           } else if (driveData.type !== "system") {
             userDrivePath = `${getUserDataPath()}/layers/${lastLayerHash}`;
@@ -774,12 +645,7 @@ export class Kymano {
     return configVars;
   };
 
-  private downloadLayer = async (
-    url: string,
-    hash: string,
-    driveName: string,
-    myConfigId: Number
-  ) => {
+  private downloadLayer = async (url: string, hash: string, driveName: string, myConfigId: Number) => {
     const layersPath = `${getUserDataPath()}/layers`;
     //const layerFileTmp = `${layersPath}/${uuidv4()}.tmp.qcow2`;
 
@@ -791,7 +657,7 @@ export class Kymano {
       });
     }
 
-    const imgPath = await recursiveDownload(url, "", driveName, myConfigId, 'layer', driveName);
+    const imgPath = await recursiveDownload(url, "", driveName, myConfigId, "layer", driveName);
     console.log("imgPath:::::::::::;", imgPath);
     fs.renameSync(imgPath, `${layersPath}/${hash}`);
 

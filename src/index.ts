@@ -6,14 +6,17 @@ export {
   globalSockets,
   electronWindow,
   shiftMessagesQueue,
+  cleanMessagesQueue,
   shiftQemuImgConvertingQueue,
+  MessagesQueueType,
+  MessagesQueueStatus,
   pushGuestFsQueue,
   setIp,
   shiftGuestFsQueue,
   shiftGuestFsQueue2,
   ip,
   mounted,
-  pids
+  pids,
 } from "./global";
 export { getUserDataPath } from "./commands/service/getUserDataPath";
 export { getArch } from "./commands/service/getArch";
@@ -30,3 +33,5 @@ export {
   delDrivesViaMonitor,
   addDriveViaMonitor,
 } from "./service/sockets";
+
+export { isFileExist } from "./service/isFileExist";

@@ -10,6 +10,23 @@ export var guestFsQueue2 = [];
 export var socketData = {};
 export var cmdId = 0;
 export var mounted = {};
+export enum MessagesQueueType {
+  QemuImgDownloading = 0,
+  QemuImgUnpacking = 1,
+  QemuDownloading = 2,
+  QemuUnpacking = 3,
+  LayerDownloading = 4,
+  LayerUnpacking = 5,
+  SnapshotDownloading = 6,
+  SnapshotUnpacking = 7,
+  RepoDownloading = 8,
+  RepoUnpacking = 9,
+}
+
+export enum MessagesQueueStatus {
+  Downloading = 0,
+  Finished = 1,
+}
 
 export const pushQemuImgConvertingQueue = (element: any) => {
   qemuImgConvertingQueue.push(element);
@@ -17,14 +34,6 @@ export const pushQemuImgConvertingQueue = (element: any) => {
 
 export const shiftQemuImgConvertingQueue = () => {
   return qemuImgConvertingQueue.shift();
-};
-
-export const pushMessagesQueue = (element: any) => {
-  messagesQueue.push(element);
-};
-
-export const shiftMessagesQueue = () => {
-  return messagesQueue.shift();
 };
 
 export const delFromDiskIds = (disk: string) => {
@@ -77,6 +86,24 @@ export const pushSocketData = (worker: string, data: any) => {
   }
   console.log("add", data, worker);
   socketData[worker] = [...socketData[worker], ...data];
+};
+
+export const pushMessagesQueue = (queue: string, data: any) => {
+  if (!messagesQueue[queue]) {
+    messagesQueue[queue] = [];
+  }
+  messagesQueue[queue] = [...messagesQueue[queue], data];
+};
+
+export const cleanMessagesQueue = (queue: string) => {
+  messagesQueue[queue] = [];
+};
+
+export const shiftMessagesQueue = (queue: string) => {
+  if (!messagesQueue[queue]) {
+    messagesQueue[queue] = [];
+  }
+  return messagesQueue[queue].shift();
 };
 
 export const getCmdId = () => {

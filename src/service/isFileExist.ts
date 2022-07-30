@@ -1,6 +1,6 @@
-import fs from 'fs';
+import fs from "fs";
 
-const isFileExist = (filepath: string) => {
+export const isFileExist = (filepath: string) => {
   let flag = true;
   try {
     fs.accessSync(filepath, fs.constants.F_OK);
@@ -8,8 +8,4 @@ const isFileExist = (filepath: string) => {
     flag = false;
   }
   return flag;
-};
-
-export default (filepath: string) => {
-  return isFileExist(filepath);
 };

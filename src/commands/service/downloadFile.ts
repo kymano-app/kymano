@@ -1,23 +1,20 @@
-import { electronWindow, pushMessagesQueue } from "../../global";
+import { electronWindow, MessagesQueueStatus, MessagesQueueType, pushMessagesQueue } from "../../global";
 
 const fs = require("fs");
 const axios = require("axios");
 const ProgressBar = require("progress");
 
-async function downloadFile(
+export async function downloadFile(
   url: string,
   path: string,
   myConfigId: Number,
   type: string,
-  name: string
+  name: string,
+  messagesQueueType: MessagesQueueType,
+  part: number = 0
 ) {
   if (Object.keys(electronWindow).length) {
-    electronWindow.global.webContents.send(
-      "downloading-started",
-      type,
-      name,
-      myConfigId
-    );
+    electronWindow.global.webContents.send("downloading-started", type, name, myConfigId);
   }
 
   const { data, headers } = await axios({
@@ -56,16 +53,28 @@ async function downloadFile(
     }
     percent[pct] = 1;
 
-    pushMessagesQueue(pct);
+    let text;
+    let partText = part > 1 ? ` (part ${part})` : "";
+    //let partText = `(${part})`;
+    if (messagesQueueType === MessagesQueueType.LayerDownloading) {
+      text = `Downloading${partText} ${name} layer`;
+    }
+    if (messagesQueueType === MessagesQueueType.QemuImgDownloading) {
+      text = `Downloading${partText} qemu-img ${name}`;
+    }
+    if (messagesQueueType === MessagesQueueType.QemuDownloading) {
+      text = `Downloading${partText} qemu ${name}`;
+    }
+    if (messagesQueueType === MessagesQueueType.SnapshotDownloading) {
+      text = `Downloading${partText} ${name} snapshot`;
+    }
+    if (messagesQueueType === MessagesQueueType.RepoDownloading) {
+      text = `Downloading${partText} ${name} repo`;
+    }
+    pushMessagesQueue(myConfigId, { pct: pct, text: text });
 
     if (Object.keys(electronWindow).length) {
-      electronWindow.global.webContents.send(
-        "downloading",
-        type,
-        name,
-        myConfigId,
-        pct
-      );
+      electronWindow.global.webContents.send("downloading", type, name, myConfigId, pct);
     }
   });
   data.pipe(writer);
@@ -74,12 +83,7 @@ async function downloadFile(
     writer.on("finish", () => {
       console.log("::::::::::::::::resolve();", length, totalLength);
       if (Object.keys(electronWindow).length) {
-        electronWindow.global.webContents.send(
-          "downloading-finished",
-          type,
-          name,
-          myConfigId
-        );
+        electronWindow.global.webContents.send("downloading-finished", type, name, myConfigId);
       }
       resolve();
     });
@@ -87,24 +91,9 @@ async function downloadFile(
     data.on("error", () => {
       console.log("::::::::::::::::reject();");
       if (Object.keys(electronWindow).length) {
-        electronWindow.global.webContents.send(
-          "downloading-error",
-          type,
-          name,
-          myConfigId
-        );
+        electronWindow.global.webContents.send("downloading-error", type, name, myConfigId);
       }
       reject();
     });
   });
 }
-
-export default async (
-  url: string,
-  path: string,
-  myConfigId: Number,
-  type: string,
-  name: string
-) => {
-  return Promise.resolve(await downloadFile(url, path, myConfigId, type, name));
-};

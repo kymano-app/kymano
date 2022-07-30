@@ -5,7 +5,7 @@ import { getArch } from "../commands/service/getArch";
 import { getPlatform } from "../commands/service/getPlatform";
 import { getUserDataPath } from "../commands/service/getUserDataPath";
 import { QEMU_DEFAULT } from "../consts";
-import isFileExist from "../service/isFileExist";
+import { isFileExist } from "../service/isFileExist";
 
 const spawn = require("await-spawn");
 const fsAsync = require("fs").promises;
@@ -69,14 +69,10 @@ export class QemuCommands {
       const qemuImg = `${getUserDataPath()}/qemu/${
         QEMU_DEFAULT[getPlatform()]
       }-${getPlatform()}-${getArch()}/bin/qemu-img`;
-      await execCommandWithProgress(
-        ["convert", "-p", importingPath, "-O", "raw", layerPath],
-        qemuImg,
-        "pipe"
-      );
+      await execCommandWithProgress(["convert", "-p", importingPath, "-O", "raw", layerPath], qemuImg, "pipe");
       console.log(`src/qemuCommands/qemuCommands.ts:76 execCommandWithProgress`);
     } catch (e) {
-        throw Error(e.stderr.toString());
+      throw Error(e.stderr.toString());
     }
   };
 
@@ -125,6 +121,7 @@ export class QemuCommands {
     }
     console.log("share::::::::::", share);
     const resp = execCommand(["-L", share, ...confparams], qemuBinary, ["inherit", "inherit", null]);
+
     console.log("resp.child1", resp.child.pid);
     return resp;
 

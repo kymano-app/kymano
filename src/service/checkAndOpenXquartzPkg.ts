@@ -1,5 +1,5 @@
 import getExternalBinariesPath from './getExternalBinariesPath';
-import isFileExist from './isFileExist';
+import { isFileExist } from './isFileExist';
 
 const spawn = require('await-spawn');
 

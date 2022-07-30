@@ -1,6 +1,7 @@
 import path from "path";
-import isFileExist from "../../service/isFileExist";
-import downloadAndExtract from "./downloadAndExtract";
+import { MessagesQueueType } from "../../global";
+import { isFileExist } from "../../service/isFileExist";
+import { downloadAndExtract } from "./downloadAndExtract";
 import { getFileNameFromUrl } from "./getFileNameFromUrl";
 import { joinFiles } from "./joinFiles";
 
@@ -13,14 +14,16 @@ export const recursiveDownload = async (
   driveName: string,
   myConfigId: Number,
   type: string,
-  name: string
+  name: string,
+  part: number = 1
 ) => {
+  console.log(`src/commands/service/recursiveDowload.ts:19 recursiveDownload`, part);
   const tmpDir = tmp.dirSync();
 
   console.log("recursiveDowload::::::::::::::", url, firstFile);
   const unpackedDowloadedTmp = path.join(tmpDir.name, getFileNameFromUrl(url));
   console.log("layerFileTmp::::::::", unpackedDowloadedTmp);
-  await downloadAndExtract(url, tmpDir.name, myConfigId, type, name);
+  await downloadAndExtract(url, tmpDir.name, myConfigId, type, name, MessagesQueueType.LayerDownloading, part);
 
   console.log("readFileSync:::", unpackedDowloadedTmp);
 
@@ -47,7 +50,7 @@ export const recursiveDownload = async (
   if (isFileExist(next)) {
     console.log("readFileSync:", next);
     var newUrl = fs.readFileSync(next, "utf8").trim();
-    await recursiveDownload(newUrl, firstFile, driveName, myConfigId, type, name);
+    await recursiveDownload(newUrl, firstFile, driveName, myConfigId, type, name, ++part);
   }
   // } else {
   //   console.log('fileHash1:::::::')

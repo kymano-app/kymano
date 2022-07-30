@@ -1,8 +1,8 @@
 import Database from "better-sqlite3";
 import path from 'path';
-import {getUserDataPath} from "./commands/service/getUserDataPath";
+import { getUserDataPath } from "./commands/service/getUserDataPath";
 import processCLI from "./processCLI";
-import isFileExist from "./service/isFileExist";
+import { isFileExist } from "./service/isFileExist";
 
 const fsAsync = require('fs').promises;
 

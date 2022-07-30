@@ -1,21 +1,26 @@
-import downloadFile from './downloadFile';
-import unPackTarGz from './unPackTarGz';
+import { MessagesQueueType } from "../../global";
+import { downloadFile } from "./downloadFile";
+import unPackTarGz from "./unPackTarGz";
 
-const tmp = require('tmp');
+const tmp = require("tmp");
 
-async function downloadAndExtract(url: string, path: string, myConfigId: Number, type: string, name: string) {
+export async function downloadAndExtract(
+  url: string,
+  path: string,
+  myConfigId: Number,
+  type: string,
+  name: string,
+  messagesQueueType: MessagesQueueType,
+  part: number = 0
+) {
   const tmpobj = tmp.fileSync();
-  console.log('downloadAndExtract:::::::::::: ', url, myConfigId, type, name);
-  console.log('File: ', tmpobj.name);
-  console.log('Filedescriptor: ', tmpobj.fd);
-  await downloadFile(url, tmpobj.name, myConfigId, type, name);
-  console.log('downloadFile ok')
+  console.log("downloadAndExtract:::::::::::: ", url, myConfigId, type, name);
+  console.log("File: ", tmpobj.name);
+  console.log("Filedescriptor: ", tmpobj.fd);
+  await downloadFile(url, tmpobj.name, myConfigId, type, name, messagesQueueType, part);
+  console.log("downloadFile ok");
   const files = await unPackTarGz(tmpobj.name, path, myConfigId);
-  console.log('unPackTarGz ok')
+  console.log("unPackTarGz ok");
   tmpobj.removeCallback();
   return files;
 }
-
-export default async (url: string, path: string, myConfigId: Number, type: string, name: string) => {
-  return Promise.resolve(await downloadAndExtract(url, path, myConfigId, type, name));
-};

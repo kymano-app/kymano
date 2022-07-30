@@ -22,6 +22,7 @@ const processCLI = async (args: any[], db: any) => {
 
   if (command === 'run') {
     try {
+      console.log(`src/processCLI.ts:24 run::::::`);
       const response = await kymano.run(param, args);
       fs.writeFileSync(path.join(userDataPath, 'kymano_cli.pid'), response[0].child.pid.toString());
       await response;
